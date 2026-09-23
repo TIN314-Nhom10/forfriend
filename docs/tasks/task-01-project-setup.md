@@ -1,23 +1,24 @@
-# Task 01 — Project Setup & Infrastructure
+# Task 01 — Project Setup & Pure Python Infrastructure
 
 ## Mục tiêu
-Khởi tạo project skeleton cho cả Backend (FastAPI) và Frontend (Reflex — Python-first), cấu hình Docker Compose với PostgreSQL + Redis, và đảm bảo mọi thứ chạy được với `docker-compose up`.
+Khởi tạo project skeleton cho cả Backend (FastAPI) và Frontend (Reflex — Python-first), cấu hình Python virtual environment (`.venv`), kết nối SQLite 3 async (`aiosqlite`), và đảm bảo hệ thống chạy trực tiếp bằng lệnh Python thuần mà **không cần cài đặt Docker, PostgreSQL hay Redis**.
 
 ## Phụ thuộc
 - Không có (task đầu tiên)
 
 ## Yêu cầu chi tiết
 
-### 1.1. Backend Setup (FastAPI)
+### 1.1. Backend Setup (FastAPI + SQLite)
 
-Tạo cấu trúc thư mục:
+Tạo cấu trúc thư mục backend:
 ```
 backend/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py              # FastAPI app instance, CORS, lifespan
-│   ├── config.py             # Settings class (pydantic-settings)
-│   ├── database.py           # Async SQLAlchemy engine + session
+│   ├── main.py              # FastAPI app instance, CORS, lifespan (auto create DB)
+│   ├── config.py             # Settings class (pydantic-settings, load from .env)
+│   ├── database.py           # Async SQLite engine (sqlite+aiosqlite:///./forfriend.db)
+│   ├── init_db.py            # Script tạo bảng & nạp seed categories
 │   ├── models/
 │   │   └── __init__.py
 │   ├── schemas/
@@ -27,33 +28,30 @@ backend/
 │   ├── services/
 │   │   └── __init__.py
 │   ├── utils/
-│   │   └── __init__.py
+│   │   ├── __init__.py
+│   │   └── memory_cache.py   # In-Memory Cache với TTL
 │   └── websockets/
-│       └── __init__.py
-├── alembic/
-│   └── (alembic init output)
-├── alembic.ini
+│       ├── __init__.py
+│       └── connection_manager.py # In-Memory WebSocket Manager
 ├── tests/
 │   ├── __init__.py
 │   └── test_health.py
 ├── requirements.txt
-├── Dockerfile
-└── .env.example
+├── .env.example
+└── forfriend.db              # Tự sinh khi server khởi chạy
 ```
 
-**`requirements.txt`**:
+**`backend/requirements.txt`**:
 ```
 fastapi==0.115.*
 uvicorn[standard]==0.30.*
 sqlalchemy[asyncio]==2.0.*
-asyncpg==0.30.*
-alembic==1.14.*
+aiosqlite==0.20.*
 pydantic==2.*
 pydantic-settings==2.*
 python-jose[cryptography]==3.3.*
 passlib[bcrypt]==1.7.*
 python-multipart==0.0.*
-redis==5.*
 livekit-api==0.7.*
 slowapi==0.1.*
 bleach==6.*
@@ -62,22 +60,21 @@ pytest==8.*
 pytest-asyncio==0.24.*
 ```
 
-**`app/config.py`** — Dùng `pydantic-settings` để load từ `.env`:
+**`backend/app/config.py`** — Dùng `pydantic-settings` load từ `.env`:
 ```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 class Settings(BaseSettings):
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/studybuddy"
-    
-    # Redis
-    REDIS_URL: str = "redis://redis:6379/0"
+    # Database SQLite thuần Python (lưu tại thư mục backend/)
+    DATABASE_URL: str = "sqlite+aiosqlite:///./forfriend.db"
     
     # JWT
-    JWT_SECRET_KEY: str = "change-me-in-production"
+    JWT_SECRET_KEY: str = "super-secret-key-forfriend-dev-only-change-in-prod"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
-    # LiveKit
+    # LiveKit (Cloud Free Tier)
     LIVEKIT_API_KEY: str = ""
     LIVEKIT_API_SECRET: str = ""
     LIVEKIT_URL: str = "wss://your-app.livekit.cloud"
@@ -87,165 +84,207 @@ class Settings(BaseSettings):
     MAX_IMAGE_SIZE: int = 5 * 1024 * 1024     # 5MB
     MAX_CV_SIZE: int = 10 * 1024 * 1024        # 10MB
     
-    # CORS — Reflex chạy trên port 3000
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    # CORS — Frontend Reflex mặc định port 3000
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+settings = Settings()
 ```
 
-**`app/main.py`** — Phải có:
-- CORS middleware
-- Health check endpoint: `GET /health` → `{"status": "ok", "version": "0.1.0"}`
-- Lifespan handler để init/close DB connections
-- Include future routers
+**`backend/app/database.py`** — Async SQLite setup:
+```python
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+from app.config import settings
 
-**`app/database.py`** — Async SQLAlchemy setup:
-- `AsyncEngine` + `async_sessionmaker`
-- `get_db()` dependency
-- `Base = declarative_base()`
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    connect_args={"check_same_thread": False},  # Cần cho SQLite
+)
+
+# Bật Foreign Key check cho SQLite
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+class Base(DeclarativeBase):
+    pass
+
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session
+```
+
+**`backend/app/main.py`** — Khởi chạy & Tự động tạo bảng:
+```python
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.config import settings
+from app.database import engine, Base
+import app.models  # Nạp toàn bộ models
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Khởi tạo bảng tự động khi start server (tiện cho đồ án)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    await engine.dispose()
+
+app = FastAPI(title="ForFriend API", version="0.1.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "version": "0.1.0", "database": "sqlite"}
+```
+
+---
 
 ### 1.2. Frontend Setup (Reflex — Python-first)
 
-Reflex là framework Python compile ra React. Không cần `npm` hay `node` — Reflex tự quản lý.
+Reflex biên dịch Python sang React hoàn toàn tự động trong thư mục `.web/`:
 
 ```bash
-# Tạo và kích hoạt virtual env riêng cho frontend
+# Tạo môi trường cho Frontend
 cd frontend
 python -m venv .venv
-.venv\Scripts\activate  # Windows
+# Kích hoạt venv (Windows: .venv\Scripts\activate, Linux/macOS: source .venv/bin/activate)
+pip install -r requirements.txt
 
-pip install reflex==0.6.*  httpx==0.27.*
-
-# Init Reflex app
+# Khởi tạo project Reflex
 reflex init
 ```
 
-Cấu trúc thư mục:
+Cấu trúc thư mục frontend:
 ```
 frontend/
-├── studybuddy/                  # Main app package
+├── forfriend/                  # Main package Reflex
 │   ├── __init__.py
-│   ├── studybuddy.py            # App entry + routes
-│   ├── pages/                   # Mỗi page là 1 file .py
+│   ├── forfriend.py            # App entry point + routes registry
+│   ├── pages/                  # Mỗi trang là 1 module Python
 │   │   ├── __init__.py
 │   │   ├── login.py
 │   │   ├── register.py
 │   │   └── dashboard.py
-│   ├── components/              # Reusable UI components
-│   │   └── __init__.py
-│   ├── state/                   # Reflex State classes
+│   ├── components/             # Reusable UI components
+│   │   ├── __init__.py
+│   │   └── livekit_component.py # Wrap WebRTC video
+│   ├── state/                  # Reflex State classes
 │   │   ├── __init__.py
 │   │   ├── auth_state.py
 │   │   └── feed_state.py
-│   ├── styles/                  # CSS variables + design tokens
-│   │   └── theme.py             # Style dict dùng trong rx components
-│   └── assets/                  # Avatars, sounds, icons
+│   ├── styles/                 # Design tokens phong cách retro game
+│   │   └── theme.py
+│   └── assets/                 # 15 avatar chibi, icons, sound fx
 │       └── avatars/
-├── rxconfig.py                  # Reflex config
-├── requirements.txt             # Python deps
-└── Dockerfile
+├── rxconfig.py                 # Cấu hình Reflex
+└── requirements.txt            # reflex, httpx...
 ```
 
-**`rxconfig.py`** — Reflex cấu hình:
-```python
-import reflex as rx
-
-config = rx.Config(
-    app_name="studybuddy",
-    api_url="http://localhost:8000",  # Backend FastAPI URL
-    frontend_port=3000,
-    backend_port=8001,               # Reflex backend (socket server)
-)
-```
-
-**`studybuddy/studybuddy.py`** — Entry point và routing:
-```python
-import reflex as rx
-from .pages import login, register, dashboard
-
-app = rx.App(
-    stylesheets=[
-        "https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap",
-    ],
-)
-
-app.add_page(login.login_page, route="/login")
-app.add_page(register.register_page, route="/register")
-app.add_page(dashboard.dashboard_page, route="/")
-# ... more pages
-```
-
-**`requirements.txt`** (frontend):
+**`frontend/requirements.txt`**:
 ```
 reflex==0.6.*
 httpx==0.27.*
 ```
 
-### 1.3. Docker Compose
+**`frontend/rxconfig.py`**:
+```python
+import reflex as rx
 
-```yaml
-services:
-  db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: studybuddy
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-  backend:
-    build: ./backend
-    ports:
-      - "8000:8000"
-    environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/studybuddy
-      REDIS_URL: redis://redis:6379/0
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"   # Reflex frontend
-      - "8001:8001"   # Reflex backend socket
-    environment:
-      API_URL: http://backend:8000
-    depends_on:
-      - backend
-    volumes:
-      - ./frontend:/app
-      - /app/.web          # Reflex build cache
-    command: reflex run --env dev
-
-volumes:
-  pgdata:
+config = rx.Config(
+    app_name="forfriend",
+    api_url="http://localhost:8000",   # Địa chỉ FastAPI Backend
+    frontend_port=3000,
+    backend_port=8001,
+)
 ```
 
-### 1.4. Các file config khác
-- `.env.example` ở root
-- `backend/Dockerfile` (Python 3.11-slim)
-- `frontend/Dockerfile` (Python 3.11-slim — chạy Reflex)
-- `.gitignore` (thêm `.web/`, `.reflex/`)
+---
+
+### 1.3. Khởi Chạy Local Trực Tiếp (Zero Docker)
+
+Toàn bộ dự án chạy trực tiếp trên máy thông qua 2 terminal riêng biệt hoặc dùng file script tiện lợi:
+
+#### Terminal 1 — Backend:
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate          # Trên Windows
+# source .venv/bin/activate     # Trên Linux / macOS
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+API Documentation tự động mở tại: `http://localhost:8000/docs`
+
+#### Terminal 2 — Frontend:
+```bash
+cd frontend
+python -m venv .venv
+.venv\Scripts\activate          # Trên Windows
+# source .venv/bin/activate     # Trên Linux / macOS
+pip install -r requirements.txt
+reflex run
+```
+Trang chủ tự động mở tại: `http://localhost:3000`
+
+---
+
+### 1.4. Script Chạy Nhanh 1-Click (Dành Cho Đồ Án)
+
+Tạo file `run_dev.bat` tại thư mục gốc dự án (cho Windows):
+```bat
+@echo off
+echo ==========================================
+echo Starting ForFriend (Pure Python Edition)
+echo ==========================================
+
+start "ForFriend Backend" cmd /k "cd backend && call .venv\Scripts\activate && uvicorn app.main:app --reload --port 8000"
+timeout /t 3
+start "ForFriend Frontend" cmd /k "cd frontend && call .venv\Scripts\activate && reflex run"
+
+echo Backend: http://localhost:8000/docs
+echo Frontend: http://localhost:3000
+```
+
+Tạo file `run_dev.sh` tại thư mục gốc dự án (cho Linux/macOS):
+```bash
+#!/bin/bash
+echo "Starting ForFriend (Pure Python Edition)..."
+(cd backend && source .venv/bin/activate && uvicorn app.main:app --reload --port 8000) &
+sleep 3
+(cd frontend && source .venv/bin/activate && reflex run) &
+wait
+```
+
+---
 
 ## Tiêu chí hoàn thành (Acceptance Criteria)
 
-- [ ] `docker-compose up` chạy thành công, không lỗi
-- [ ] `GET http://localhost:8000/health` trả `{"status": "ok"}`
-- [ ] `http://localhost:3000` hiển thị trang Reflex mặc định
-- [ ] Frontend có thể gọi API backend qua `httpx` (đường dẫn `http://backend:8000/api/...`)
-- [ ] Database PostgreSQL kết nối được từ backend
-- [ ] Alembic init xong, chạy được `alembic upgrade head` (dù chưa có migration)
-- [ ] `pytest` chạy pass test health check
-- [ ] Reflex compile thành công (không lỗi khi `reflex run`)
+- [ ] Cài đặt dependencies thành công mà không yêu cầu Docker/Docker Compose
+- [ ] Backend khởi động tại `http://localhost:8000`, `GET /health` trả về `{"status": "ok", "database": "sqlite"}`
+- [ ] File SQLite `backend/forfriend.db` tự động được sinh khi server backend khởi chạy lần đầu
+- [ ] Swagger UI tại `http://localhost:8000/docs` xem và thử nghiệm được bình thường
+- [ ] Frontend Reflex biên dịch thành công và hiển thị tại `http://localhost:3000`
+- [ ] `pytest tests/test_health.py` chạy thành công (100% pass)
+- [ ] Không có bất kỳ phụ thuộc nào vào PostgreSQL server hay Redis server

@@ -1,4 +1,4 @@
-# API Design — StudyBuddy
+# API Design — forfriend
 
 Base URL: `/api/v1`
 

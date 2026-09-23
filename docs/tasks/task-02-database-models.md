@@ -1,17 +1,17 @@
-# Task 02 — Database Models & Migrations
+# Task 02 — Database Models & Initialization (SQLite Edition)
 
 ## Mục tiêu
-Tạo tất cả SQLAlchemy models theo schema đã thiết kế trong `docs/02-database-schema.md`, cấu hình Alembic migration, và seed data cho `room_category`.
+Tạo tất cả 10 SQLAlchemy models theo schema đã thiết kế trong `docs/02-database-schema.md`, đảm bảo tương thích 100% với SQLite async (`aiosqlite`), và viết script `init_db.py` tự tạo bảng và seed data ban đầu trong 1 lệnh duy nhất.
 
 ## Phụ thuộc
-- Task 01 (Project Setup) — cần `database.py`, `Base`, alembic config
+- Task 01 (Project Setup) — cần `database.py`, `Base`
 
 ## Tham chiếu
 - [02-database-schema.md](../02-database-schema.md) — Schema chi tiết cho từng bảng
 
 ## Yêu cầu chi tiết
 
-### 2.1. SQLAlchemy Models
+### 2.1. SQLAlchemy Models (Tương thích SQLite)
 
 Tạo các file trong `backend/app/models/`:
 
@@ -26,19 +26,18 @@ models/
 └── message.py           # Message
 ```
 
-**Quy ước chung cho mọi model:**
-- Dùng `mapped_column` syntax mới của SQLAlchemy 2.0
-- UUID primary key dùng `uuid.uuid4` default
-- Timestamps dùng `func.now()` server default
-- Relationship khai báo với `back_populates`
-- Type hints bắt buộc cho tất cả columns
-- Docstring cho class
+**Quy ước chung cho mọi model tương thích SQLite:**
+- Dùng cú pháp `Mapped` và `mapped_column` chuẩn của SQLAlchemy 2.0.
+- Khóa chính UUID: Dùng `sqlalchemy.types.Uuid(as_uuid=True)` kèm `default=uuid.uuid4`. Chuẩn này tương thích hoàn hảo với SQLite (lưu string 36 ký tự) và chuyển đổi mượt mà sang `uuid.UUID` trong Python.
+- Timestamps: Dùng `server_default=func.now()` và `onupdate=func.now()`.
+- Relationship khai báo với `back_populates` đầy đủ 2 chiều.
+- Type hints bắt buộc cho tất cả columns.
 
-**Ví dụ mẫu cho `user.py`:**
+**Ví dụ mẫu cho `backend/app/models/user.py`:**
 ```python
 import uuid
 from datetime import date, datetime
-from sqlalchemy import String, Integer, Float, Boolean, Date, Text, func
+from sqlalchemy import String, Integer, Float, Boolean, Date, Text, func, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -47,8 +46,8 @@ class User(Base):
     """Bảng user — thông tin sinh viên."""
     __tablename__ = "user"
 
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     date_of_birth: Mapped[date] = mapped_column(Date, nullable=False)
@@ -71,25 +70,20 @@ class User(Base):
     subjects: Mapped[list["UserSubject"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     posts: Mapped[list["Post"]] = relationship(back_populates="author")
     hosted_rooms: Mapped[list["Room"]] = relationship(back_populates="host")
-    # ... các relationship khác
 ```
 
-### 2.2. Alembic Migration
+---
 
-Cấu hình `alembic/env.py`:
-- Import tất cả models từ `app.models`
-- Dùng `target_metadata = Base.metadata`
-- Config cho async PostgreSQL
+### 2.2. Script Khởi Tạo & Seed Dữ Liệu (`init_db.py`)
 
-Tạo migration:
-```bash
-alembic revision --autogenerate -m "create_all_tables"
-```
+Tạo file `backend/app/init_db.py` để người chấm bài / developer có thể khởi tạo database và dữ liệu mẫu bất cứ lúc nào:
 
-### 2.3. Seed Data
-
-Tạo script `backend/app/seed.py` để seed `room_category`:
 ```python
+import asyncio
+from app.database import engine, Base, AsyncSessionLocal
+from app.models.room import RoomCategory
+import app.models  # Nạp tất cả 10 models
+
 CATEGORIES = [
     {"name": "Toán học", "icon": "📐", "color": "#FF6B6B", "display_order": 1},
     {"name": "Lập trình", "icon": "💻", "color": "#4ECDC4", "display_order": 2},
@@ -102,15 +96,56 @@ CATEGORIES = [
     {"name": "Nghệ thuật", "icon": "🎨", "color": "#FF6348", "display_order": 9},
     {"name": "Khác", "icon": "📚", "color": "#A0A0A0", "display_order": 10},
 ]
+
+async def init_database():
+    print("🚀 Initializing SQLite database...")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("✅ Tables created successfully.")
+
+    async with AsyncSessionLocal() as session:
+        # Seed categories nếu chưa có
+        for cat_data in CATEGORIES:
+            cat = RoomCategory(**cat_data)
+            session.add(cat)
+        try:
+            await session.commit()
+            print(f"✅ Seeded {len(CATEGORIES)} room categories.")
+        except Exception:
+            await session.rollback()
+            print("ℹ️ Categories already exist or skipped.")
+
+    await engine.dispose()
+    print("🎉 Database setup complete! File: forfriend.db")
+
+if __name__ == "__main__":
+    asyncio.run(init_database())
 ```
 
-Tích hợp seed vào CLI hoặc chạy riêng: `python -m app.seed`
+**Cách chạy:**
+```bash
+cd backend
+python -m app.init_db
+```
+
+---
+
+### 2.3. Tự Động Khởi Tạo Khi Start Server (FastAPI Lifespan)
+
+Trong `backend/app/main.py`, sự kiện `lifespan` sẽ tự động gọi tạo bảng nếu file `forfriend.db` chưa tồn tại, giúp giảng viên chỉ cần chạy lệnh uvicorn là database tự hoạt động.
+
+*(Tùy chọn mở rộng)*: Vẫn có thể cấu hình Alembic nếu muốn làm bài tập nâng cao về Database Migrations:
+```bash
+alembic revision --autogenerate -m "create_initial_sqlite_schema"
+alembic upgrade head
+```
+
+---
 
 ## Tiêu chí hoàn thành
 
-- [ ] Tất cả 10 bảng đã khai báo đúng theo schema doc
-- [ ] Alembic migration tạo thành công, `alembic upgrade head` chạy pass
-- [ ] `alembic downgrade base` rollback sạch
-- [ ] Seed script chạy thành công, 10 categories được insert
-- [ ] Kiểm tra DB thủ công: tất cả indexes, unique constraints, foreign keys đúng
-- [ ] Import `from app.models import *` không lỗi circular import
+- [ ] Tất cả 10 bảng đã khai báo đúng theo schema doc và tương thích SQLite (`Uuid` type)
+- [ ] Lệnh `python -m app.init_db` chạy thành công không sinh lỗi
+- [ ] File `backend/forfriend.db` xuất hiện và chứa đầy đủ 10 bảng cùng dữ liệu mẫu categories
+- [ ] Import `from app.models import *` không bị lỗi circular import
+- [ ] Không phụ thuộc vào Docker hay PostgreSQL server bên ngoài

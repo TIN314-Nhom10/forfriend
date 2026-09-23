@@ -1,4 +1,4 @@
-# Kiến Trúc Hệ Thống — StudyBuddy
+# Kiến Trúc Hệ Thống — forfriend
 
 ## 1. Kiến trúc tổng quan (High-Level Architecture)
 
@@ -18,9 +18,9 @@ graph TB
         BIZ["Business Services"]
     end
 
-    subgraph Data["💾 Data Layer"]
-        PG["PostgreSQL"]
-        REDIS["Redis (Cache + Pub/Sub)"]
+    subgraph Data["💾 Data & In-Memory Hub Layer"]
+        SQLITE["SQLite 3 (aiosqlite)"]
+        MEM["In-Memory Hub (Memory Dict Cache + ConnectionManager)"]
     end
 
     subgraph Media["📹 Media Layer"]
@@ -34,9 +34,9 @@ graph TB
     REST --> AUTH
     AUTH --> BIZ
     BIZ --> MATCH
-    BIZ --> PG
-    BIZ --> REDIS
-    WS_Server --> REDIS
+    BIZ --> SQLITE
+    BIZ --> MEM
+    WS_Server --> MEM
     REST -->|Generate Token| LK_SFU
 ```
 
@@ -51,7 +51,7 @@ sequenceDiagram
     actor U as User
     participant FE as Frontend
     participant BE as FastAPI
-    participant DB as PostgreSQL
+    participant DB as SQLite 3
 
     U->>FE: Điền form đăng ký + chọn avatar
     FE->>BE: POST /api/v1/auth/register
@@ -59,7 +59,7 @@ sequenceDiagram
     BE->>DB: INSERT user
     DB-->>BE: user_id
     BE-->>FE: { access_token, refresh_token }
-    FE->>FE: Lưu token vào localStorage
+    FE->>FE: Lưu token vào client state
     FE-->>U: Redirect → Dashboard
 ```
 
@@ -70,22 +70,27 @@ sequenceDiagram
     actor U as User
     participant FE as Frontend
     participant BE as FastAPI
-    participant DB as PostgreSQL
-    participant RD as Redis
+    participant DB as SQLite 3
+    participant MC as In-Memory Cache (RAM dict)
 
     U->>FE: Mở bảng tin (Feed)
     FE->>BE: GET /api/v1/posts/feed?page=1
-    BE->>DB: Query posts
-    BE->>BE: Matching Score = f(school, area, subject)
-    Note over BE: Score = w1*(same_school) + w2*(same_area) + w3*(same_subject)
-    BE->>RD: Cache kết quả feed (TTL 5 phút)
+    BE->>MC: Kiểm tra cache trong RAM (key: user_id:page)
+    alt Cache hit
+        MC-->>BE: [cached_posts]
+    else Cache miss
+        BE->>DB: Query active posts
+        BE->>BE: Matching Score = f(school, area, subject)
+        Note over BE: Score = w1*(same_school) + w2*(same_area) + w3*(same_subject)
+        BE->>MC: Lưu kết quả feed vào RAM dict (TTL 5 phút)
+    end
     BE-->>FE: [posts sorted by relevance_score DESC]
     FE-->>U: Hiển thị bảng tin
 
     U->>FE: Tạo bài đăng mới
     FE->>BE: POST /api/v1/posts
     BE->>DB: INSERT post
-    BE->>RD: Invalidate feed cache liên quan
+    BE->>MC: Invalidate feed cache trong RAM
     BE-->>FE: { post_id, created_at }
 ```
 
@@ -97,7 +102,8 @@ sequenceDiagram
     actor Guest as Guest
     participant FE as Frontend
     participant BE as FastAPI
-    participant DB as PostgreSQL
+    participant DB as SQLite 3
+    participant CM as ConnectionManager (In-Memory WS)
     participant LK as LiveKit Cloud
 
     Host->>FE: Tạo phòng (tên, chủ đề, max người)
@@ -108,14 +114,16 @@ sequenceDiagram
     Guest->>FE: Xem danh sách phòng → Bấm "Xin vào"
     FE->>BE: POST /api/v1/rooms/{id}/request
     BE->>DB: INSERT room_participant (status=pending)
-    BE-->>Host: WebSocket event: "new_request"
+    BE->>CM: Push event "new_request" tới host_id
+    CM-->>Host: WebSocket event: "new_request"
 
     Host->>FE: Bấm "Chấp nhận"
     FE->>BE: POST /api/v1/rooms/{id}/approve/{user_id}
     BE->>DB: UPDATE room_participant (status=accepted)
     BE->>LK: Generate access token (room, identity)
     LK-->>BE: JWT token
-    BE-->>Guest: WebSocket event: "approved" + livekit_token
+    BE->>CM: Push event "approved" + token tới guest_id
+    CM-->>Guest: WebSocket event: "approved" + livekit_token
 
     Guest->>FE: Nhận token → Connect LiveKit
     FE->>LK: Join room (WebRTC)
@@ -131,17 +139,20 @@ sequenceDiagram
     participant FE_A as Frontend A
     participant FE_B as Frontend B
     participant BE as FastAPI (WebSocket)
-    participant DB as PostgreSQL
-    participant RD as Redis Pub/Sub
+    participant DB as SQLite 3
+    participant CM as ConnectionManager (In-Memory WS)
 
     A->>FE_A: Gõ tin nhắn → Gửi
     FE_A->>BE: WS message: {to: B, content: "Hello!"}
     BE->>DB: INSERT message
-    BE->>RD: PUBLISH channel:user:B
-    RD-->>BE: Subscriber for user B
-    BE-->>FE_B: WS message: {from: A, content: "Hello!"}
-    FE_B-->>B: Hiển thị tin nhắn + notification sound
-```
+    BE->>CM: Kiểm tra User B trong active_connections (dict)
+    alt User B online
+        BE->>CM: Route tin nhắn trực tiếp tới socket của B
+        CM-->>FE_B: WS message: {from: A, content: "Hello!"}
+        FE_B-->>B: Hiển thị tin nhắn + notification sound
+    else User B offline
+        Note over BE: Tin nhắn đã lưu trong SQLite, chờ B online load lịch sử
+    end
 
 ---
 
@@ -295,12 +306,14 @@ Sắp xếp kết quả theo `relevance_score DESC`, phân trang 20 bài/trang.
 
 ---
 
-## 7. Scalability Notes
+## 7. Đồ Án Môn Học & Kiến Trúc Tối Giản (Course Project Optimization)
 
-Ở giai đoạn MVP, hệ thống chạy trên **single server** (Docker Compose) là đủ. Khi scale:
+Để tối ưu cho việc **nộp và chấm đồ án môn học**, toàn bộ hệ thống được thiết kế chạy **100% Python thuần trên một máy tính cục bộ**:
 
-1. **Database**: Thêm read replica cho PostgreSQL
-2. **WebSocket**: Chuyển sang Redis Pub/Sub để scale horizontal
-3. **Video Call**: LiveKit Cloud tự scale, không cần lo
-4. **Cache**: Redis cluster
-5. **Backend**: Chạy nhiều FastAPI instances sau Nginx load balancer
+1. **Zero External Dependencies**: Không cần cài đặt hay bật Docker, PostgreSQL hay Redis. Người chấm bài chỉ cần Python 3.11+ và virtualenv.
+2. **Database Tự Sinh**: SQLite lưu trong file `backend/forfriend.db`, tự khởi tạo và nạp dữ liệu mẫu khi start server.
+3. **In-Memory Hub**: `ConnectionManager` quản lý kết nối WebSocket và Cache trong RAM (dict có TTL), loại bỏ hoàn toàn sự phụ thuộc vào Redis.
+4. **Khả năng mở rộng (Scale Path khi cần)**:
+   - Chuyển `aiosqlite` sang `asyncpg` (PostgreSQL) chỉ bằng cách đổi URL trong file `.env`.
+   - Chuyển `ConnectionManager` in-memory sang Redis Pub/Sub khi cần scale ra nhiều FastAPI workers.
+   - Video Call qua LiveKit SFU Cloud đã sẵn sàng scale tự động.

@@ -1,18 +1,18 @@
 # Agent Prompt — Backend Developer
 
 ## Vai trò
-Bạn là **Backend Developer Agent** chuyên xây dựng API và business logic cho dự án **StudyBuddy** — nền tảng tìm bạn học dành cho sinh viên.
+Bạn là **Backend Developer Agent** chuyên xây dựng API và business logic cho dự án **forfriend** — nền tảng tìm bạn học dành cho sinh viên.
 
 ## Tech Stack bắt buộc
 - **Framework**: FastAPI (Python 3.11+)
-- **ORM**: SQLAlchemy 2.0 (async mode với asyncpg)
-- **Database**: PostgreSQL 15
-- **Cache**: Redis 7
+- **ORM**: SQLAlchemy 2.0 (async mode với `aiosqlite`)
+- **Database**: SQLite 3 (file `forfriend.db` tại root backend)
+- **Cache & Real-time Hub**: In-Memory Python (`dict` TTL cache + `ConnectionManager`) — 0% Redis
 - **Auth**: JWT (python-jose) + bcrypt (passlib)
 - **Validation**: Pydantic v2
-- **WebSocket**: FastAPI native WebSocket
+- **WebSocket**: FastAPI native WebSocket + `ConnectionManager`
 - **Video Call Token**: LiveKit Python SDK (`livekit-api`)
-- **Migration**: Alembic
+- **Database Init**: Script `python -m app.init_db` (hoặc auto create qua lifespan)
 
 ## Cấu trúc code bắt buộc
 
@@ -132,7 +132,7 @@ Task 10: Friend & Chat
 ## Checklist trước khi submit
 
 - [ ] Code chạy không lỗi (import, syntax)
-- [ ] `alembic upgrade head` thành công (nếu có model mới)
+- [ ] Database khởi tạo thành công (`python -m app.init_db` hoặc auto lifespan)
 - [ ] Tất cả tests pass (`pytest`)
 - [ ] Swagger UI hiển thị đúng (`/docs`)
 - [ ] Không có hardcoded secrets

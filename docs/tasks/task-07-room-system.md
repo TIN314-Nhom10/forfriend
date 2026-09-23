@@ -118,13 +118,21 @@ Cần check unique trong DB trước khi dùng.
 
 ### 7.4. WebSocket Handler cho Room Events
 
-Tạo `backend/app/websockets/notifications.py`:
+### 7.4. In-Memory ConnectionManager & WebSocket Handler cho Room Events
+
+Tạo `backend/app/websockets/connection_manager.py` để quản lý các kết nối WebSocket đang hoạt động trong RAM (0% Redis):
 
 ```python
+from fastapi import WebSocket
+import logging
+
+logger = logging.getLogger(__name__)
+
 class ConnectionManager:
-    """Quản lý WebSocket connections theo user_id."""
+    """Quản lý các kết nối WebSocket theo user_id trong RAM (In-Memory)."""
     
     def __init__(self):
+        # Lưu trữ: { user_id: list[WebSocket] } — hỗ trợ 1 user mở nhiều tab
         self.active_connections: dict[str, list[WebSocket]] = {}
     
     async def connect(self, user_id: str, websocket: WebSocket):
@@ -132,28 +140,87 @@ class ConnectionManager:
         if user_id not in self.active_connections:
             self.active_connections[user_id] = []
         self.active_connections[user_id].append(websocket)
+        logger.info(f"User {user_id} connected. Active connections: {len(self.active_connections[user_id])}")
     
     async def disconnect(self, user_id: str, websocket: WebSocket):
-        self.active_connections[user_id].remove(websocket)
-    
-    async def send_to_user(self, user_id: str, event: dict):
         if user_id in self.active_connections:
+            if websocket in self.active_connections[user_id]:
+                self.active_connections[user_id].remove(websocket)
+            if not self.active_connections[user_id]:
+                del self.active_connections[user_id]
+        logger.info(f"User {user_id} disconnected.")
+    
+    async def send_to_user(self, user_id: str, event: dict) -> bool:
+        """Gửi event JSON trực tiếp tới user qua kết nối WebSocket trong RAM."""
+        if user_id in self.active_connections:
+            dead_connections = []
             for ws in self.active_connections[user_id]:
-                await ws.send_json(event)
+                try:
+                    await ws.send_json(event)
+                except Exception as e:
+                    logger.warning(f"Failed to send to user {user_id}: {e}")
+                    dead_connections.append(ws)
+            for ws in dead_connections:
+                await self.disconnect(user_id, ws)
+            return True
+        return False  # User đang offline
+
+    async def broadcast_to_users(self, user_ids: list[str], event: dict):
+        """Gửi event đồng thời cho một nhóm user (ví dụ: các thành viên trong phòng)."""
+        for uid in user_ids:
+            await self.send_to_user(uid, event)
+
+notification_manager = ConnectionManager()
 ```
 
-WebSocket endpoint:
+**Cách RoomService kích hoạt sự kiện in-memory:**
 ```python
-@app.websocket("/ws/notifications")
+# 1. Khi khách gửi yêu cầu xin vào phòng:
+await notification_manager.send_to_user(str(room.host_id), {
+    "type": "room_request",
+    "data": {
+        "room_id": str(room.id),
+        "user": {"id": str(user.id), "name": user.name, "avatar_id": user.avatar_id}
+    }
+})
+
+# 2. Khi Host chấp nhận yêu cầu:
+await notification_manager.send_to_user(str(target_user_id), {
+    "type": "room_approved",
+    "data": {
+        "room_id": str(room.id),
+        "livekit_token": token,
+        "livekit_url": settings.LIVEKIT_URL
+    }
+})
+
+# 3. Khi Host đóng phòng:
+participant_ids = [str(p.user_id) for p in room.participants if p.status == "accepted"]
+await notification_manager.broadcast_to_users(participant_ids, {
+    "type": "room_closed",
+    "data": {"room_id": str(room.id)}
+})
+```
+
+**WebSocket endpoint (`backend/app/routers/websocket.py`):**
+```python
+@router.websocket("/ws/notifications")
 async def ws_notifications(websocket: WebSocket, token: str = Query(...)):
     user = await verify_ws_token(token)
-    await manager.connect(str(user.id), websocket)
+    if not user:
+        await websocket.close(code=4001, reason="Invalid auth token")
+        return
+
+    user_id = str(user.id)
+    await notification_manager.connect(user_id, websocket)
     try:
         while True:
+            # Lắng nghe ping/pong giữ kết nối
             data = await websocket.receive_text()
-            # Handle ping/pong
+            if data == "ping":
+                await websocket.send_text("pong")
     except WebSocketDisconnect:
-        await manager.disconnect(str(user.id), websocket)
+        await notification_manager.disconnect(user_id, websocket)
 ```
 
 ### 7.5. Room Router

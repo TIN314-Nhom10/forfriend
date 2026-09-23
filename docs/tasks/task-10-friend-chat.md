@@ -99,12 +99,41 @@ class MessageListResponse(BaseModel):
 - `mark_read(db, user_id, friend_id)`
   - Update tất cả message từ friend_id tới user_id: is_read = true, read_at = now()
 
-### 10.4. Chat WebSocket
+### 10.4. Chat WebSocket & In-Memory Routing (Không dùng Redis Pub/Sub)
 
-Tạo `backend/app/websockets/chat.py`:
+Tin nhắn chat 1-1 được định tuyến trực tiếp trong RAM thông qua `chat_manager` (kế thừa hoặc mở rộng từ `ConnectionManager`):
 
 ```python
-@app.websocket("/ws/chat/{friend_id}")
+# backend/app/websockets/connection_manager.py
+
+class ChatConnectionManager:
+    """Quản lý các kết nối WebSocket trong các phòng chat 1-1."""
+    def __init__(self):
+        # Key: (user_id, friend_id) -> WebSocket
+        self.active_chats: dict[tuple[str, str], WebSocket] = {}
+
+    async def connect(self, user_id: str, friend_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_chats[(user_id, friend_id)] = websocket
+
+    async def disconnect(self, user_id: str, friend_id: str):
+        self.active_chats.pop((user_id, friend_id), None)
+
+    async def send_to_chat(self, from_user_id: str, to_user_id: str, data: dict) -> bool:
+        """Gửi trực tiếp tin nhắn tới cửa sổ chat của bạn bè nếu họ đang mở khung chat này."""
+        friend_socket = self.active_chats.get((to_user_id, from_user_id))
+        if friend_socket:
+            await friend_socket.send_json(data)
+            return True
+        return False
+
+chat_manager = ChatConnectionManager()
+```
+
+Endpoint WebSocket cho chat 1-1 trong `backend/app/routers/websocket.py`:
+
+```python
+@router.websocket("/ws/chat/{friend_id}")
 async def ws_chat(
     websocket: WebSocket,
     friend_id: UUID,
@@ -112,61 +141,66 @@ async def ws_chat(
     db: AsyncSession = Depends(get_db),
 ):
     user = await verify_ws_token(token)
+    if not user:
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
     
     # Validate friendship
     if not await friend_service.are_friends(db, user.id, friend_id):
         await websocket.close(code=4003, reason="Not friends")
         return
 
-    await chat_manager.connect(str(user.id), str(friend_id), websocket)
+    uid_str = str(user.id)
+    fid_str = str(friend_id)
+    await chat_manager.connect(uid_str, fid_str, websocket)
     
     try:
         while True:
             data = await websocket.receive_json()
             
             if data["type"] == "message":
-                # Save to DB
+                # 1. Lưu vào SQLite
                 msg = await message_service.create_message(
                     db, user.id, friend_id, data["content"]
                 )
-                # Forward to friend if online
-                await chat_manager.send_to_user(str(friend_id), {
+                
+                # 2. Gửi realtime trực tiếp nếu bạn đang mở khung chat
+                chat_data = {
                     "type": "message",
                     "content": msg.content,
                     "message_id": str(msg.id),
                     "created_at": msg.created_at.isoformat(),
-                })
-                # Also send notification if friend not in this chat
-                await notification_manager.send_to_user(str(friend_id), {
-                    "type": "new_message",
-                    "data": {
-                        "from": str(user.id),
-                        "from_name": user.name,
-                        "from_avatar": user.avatar_id,
-                        "content": msg.content[:100],  # Preview
-                        "created_at": msg.created_at.isoformat(),
-                    }
-                })
+                }
+                sent_to_chat = await chat_manager.send_to_chat(uid_str, fid_str, chat_data)
+                
+                # 3. Nếu bạn không mở khung chat này, gửi notification toast
+                if not sent_to_chat:
+                    await notification_manager.send_to_user(fid_str, {
+                        "type": "new_message",
+                        "data": {
+                            "from": uid_str,
+                            "from_name": user.name,
+                            "from_avatar": user.avatar_id,
+                            "content": msg.content[:100],  # Preview
+                            "created_at": msg.created_at.isoformat(),
+                        }
+                    })
             
             elif data["type"] == "typing":
-                await chat_manager.send_to_user(str(friend_id), {
-                    "type": "typing"
-                })
+                await chat_manager.send_to_chat(uid_str, fid_str, {"type": "typing"})
             
             elif data["type"] == "stop_typing":
-                await chat_manager.send_to_user(str(friend_id), {
-                    "type": "stop_typing"
-                })
+                await chat_manager.send_to_chat(uid_str, fid_str, {"type": "stop_typing"})
             
             elif data["type"] == "read":
                 await message_service.mark_read(db, user.id, friend_id)
-                await chat_manager.send_to_user(str(friend_id), {
+                await chat_manager.send_to_chat(uid_str, fid_str, {
                     "type": "read",
                     "read_at": datetime.utcnow().isoformat(),
                 })
                 
     except WebSocketDisconnect:
-        await chat_manager.disconnect(str(user.id), str(friend_id))
+        await chat_manager.disconnect(uid_str, fid_str)
 ```
 
 ### 10.5. Online Status

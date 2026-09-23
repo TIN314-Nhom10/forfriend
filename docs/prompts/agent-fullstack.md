@@ -1,128 +1,110 @@
-# Agent Prompt — Fullstack (Tất cả trong 1)
+# Agent Prompt — Fullstack (Tất cả trong 1 — Pure Python Edition)
 
 ## Vai trò
-Bạn là **Fullstack Developer Agent** chịu trách nhiệm toàn bộ dự án **StudyBuddy** — từ database, backend API, đến frontend UI. Dùng prompt này khi 1 agent xử lý end-to-end.
+Bạn là **Fullstack Developer Agent** chịu trách nhiệm toàn bộ dự án **forfriend** — nền tảng tìm bạn học nhóm sinh viên phong cách web game retro, xây dựng bằng **100% Pure Python Stack (FastAPI + Reflex + SQLite + In-Memory Hub)**, không dùng Docker.
+
+---
 
 ## Tóm tắt dự án
 
-**StudyBuddy** là web app giúp sinh viên tìm bạn học, tạo phòng video call học nhóm, đánh giá nhau, kết bạn và nhắn tin. Giao diện theo phong cách **web game retro**.
+**forfriend** là web app giúp sinh viên kết nối tìm bạn học nhóm offline và tham gia phòng học ảo có video call.
 
 ### Tech Stack
 | Layer | Technology |
-|-------|-----------|
-| Frontend | React 18 + TypeScript + Vite |
-| Styling | Vanilla CSS (game-style dark theme, pixel font) |
-| Backend | Python 3.11 + FastAPI |
-| ORM | SQLAlchemy 2.0 (async) |
-| Database | PostgreSQL 15 |
-| Cache | Redis 7 |
-| Auth | JWT (python-jose + bcrypt) |
-| Video Call | LiveKit Cloud + LiveKit React SDK |
-| Real-time | FastAPI WebSocket + Redis Pub/Sub |
-| Deploy | Docker + Docker Compose + Nginx |
+|---|---|
+| Frontend | Reflex (100% Python-first UI compile sang React) |
+| Styling | Vanilla CSS Design Tokens (Game retro dark theme, pixel font) |
+| Backend | Python 3.11+ / FastAPI |
+| ORM | SQLAlchemy 2.0 (async mode với `aiosqlite`) |
+| Database | SQLite 3 (file `backend/forfriend.db`) |
+| Cache & Hub | In-Memory Python (`dict` TTL cache + `ConnectionManager`) |
+| Auth | JWT (python-jose) + bcrypt (passlib) |
+| Video Call | LiveKit Cloud + Reflex Custom Component wrapper (`livekit_component.py`) |
+| Real-time | FastAPI native WebSocket + `ConnectionManager` |
+| Local Run | Python virtualenv (`.venv`), script `run_dev.bat` / `run_dev.sh` (0% Docker) |
 
 ### Tính năng chính
-1. **Auth**: Đăng ký (multi-field), đăng nhập, JWT refresh
-2. **Feed**: Bảng tin tìm bạn học + matching algorithm (cùng trường/khu vực/môn)
-3. **Rooms**: Tạo phòng video call, request/approve flow, phân loại theo chủ đề
-4. **Video Call**: LiveKit SFU, token-based, host controls
-5. **Rating**: Đánh giá bạn học 1–5 sao sau khi rời phòng
-6. **Friends + Chat**: Kết bạn, nhắn tin real-time WebSocket
-7. **Game UI**: Dark theme, neon glow, pixel font, 15 avatar chibi
+1. **Auth**: Đăng ký thông tin sinh viên, chọn 1 trong 15 avatar chibi, đăng nhập JWT
+2. **Feed**: Bảng tin Quest Board tìm bạn học + thuật toán matching điểm tương đồng
+3. **Rooms**: Tạo phòng học chia theo chủ đề, luồng xin vào/duyệt phòng real-time
+4. **Video Call**: LiveKit SFU Cloud WebRTC tích hợp trong phòng học
+5. **Rating**: Đánh giá bạn học 1–5 sao sau khi rời phòng, tích lũy điểm uy tín
+6. **Friends + Chat**: Kết bạn, nhắn tin riêng 1-1 real-time qua WebSocket in-memory
+7. **Game UI**: Dark theme (`#0a0a1a`), neon glow (`#00ff88`), font "Press Start 2P", 15 avatar chibi
+
+---
 
 ## Tài liệu tham chiếu (BẮT BUỘC ĐỌC)
 
-Tất cả docs nằm trong `docs/`:
+Tất cả tài liệu chuẩn nằm trong thư mục `docs/`:
+- **[00-overview.md](../00-overview.md)**: Tổng quan, tính năng, tech stack, conventions
+- **[01-architecture.md](../01-architecture.md)**: Kiến trúc hệ thống, sequence diagrams, module design
+- **[02-database-schema.md](../02-database-schema.md)**: Schema 10 bảng, kiểu UUID tương thích SQLite
+- **[03-api-design.md](../03-api-design.md)**: Toàn bộ REST API & WebSocket endpoints
 
-| File | Nội dung |
-|------|----------|
-| [00-overview.md](../00-overview.md) | Tổng quan, tính năng, tech stack, conventions |
-| [01-architecture.md](../01-architecture.md) | Kiến trúc hệ thống, sequence diagrams, module design |
-| [02-database-schema.md](../02-database-schema.md) | ER diagram, schema chi tiết 10 bảng, indexes |
-| [03-api-design.md](../03-api-design.md) | Tất cả REST endpoints, WebSocket events, error format |
+---
 
-## Danh sách Tasks (theo thứ tự)
+## Danh sách 12 Tasks (theo thứ tự)
 
 ```
- ┌─ Task 01: Project Setup (Docker, FastAPI skeleton, Vite skeleton)
+ ┌─ Task 01: Project Setup (Python venv, FastAPI skeleton, Reflex skeleton, SQLite)
  │
- ├─ Task 02: Database Models (SQLAlchemy models, Alembic migration, seed)
+ ├─ Task 02: Database Models (SQLAlchemy models, init_db.py, auto seed categories)
  │
- ├─ Task 03: Auth System (Register, Login, JWT, middleware)
+ ├─ Task 03: Auth System (Register + avatar chibi, Login, JWT auth, middleware)
  │
- ├─ Task 04: User Profile (CRUD profile, file upload, avatar)
+ ├─ Task 04: User Profile (CRUD profile, file upload, đổi avatar)
  │
- ├─ Task 05: Post Feed (CRUD posts, feed API, filters)
+ ├─ Task 05: Post Feed (CRUD bài đăng, feed API, filter theo trường/môn)
  │
- ├─ Task 06: Matching Algorithm (Relevance scoring, Redis cache)
+ ├─ Task 06: Matching Algorithm (Relevance scoring, In-Memory dict cache TTL)
  │
- ├─ Task 07: Room System (CRUD rooms, lobby, request/approve, WebSocket)
+ ├─ Task 07: Room System (CRUD phòng, lobby theo chủ đề, duyệt vào qua WS)
  │
- ├─ Task 08: Video Call LiveKit (Token generation, room flow integration)
+ ├─ Task 08: Video Call LiveKit (Cấp token LiveKit, Reflex Custom Component)
  │
- ├─ Task 09: Rating System (1-5 stars, avg calculation, pending ratings)
+ ├─ Task 09: Rating System (Đánh giá 1-5 sao, tính điểm uy tín bạn học)
  │
- ├─ Task 10: Friend & Chat (Friend request, real-time messaging, online status)
+ ├─ Task 10: Friend & Chat (Kết bạn, nhắn tin 1-1 qua In-Memory ConnectionManager)
  │
- ├─ Task 11: Frontend Game UI (All pages, components, design system, LiveKit UI)
+ ├─ Task 11: Frontend Game UI (Reflex pages, components, CSS tokens, chibi avatars)
  │
- └─ Task 12: Deployment (Docker prod, Nginx, deploy script, README)
+ └─ Task 12: Submission & Demo (Script run_dev.bat/.sh, README chấm điểm đồ án)
 ```
 
-Mỗi task có file chi tiết trong `docs/tasks/task-XX-*.md`. **ĐỌC file task trước khi code.**
+---
 
 ## Quy tắc làm việc
 
 ### 1. Đọc trước, code sau
-- Đọc overview + architecture + schema + API design TRƯỚC
-- Đọc file task cụ thể TRƯỚC khi bắt tay vào
-- Kiểm tra code hiện có để hiểu context
+- Đọc `AGENTS.md` và các file `docs/tasks/task-XX-*.md` trước khi code.
+- Tuyệt đối không thêm Dockerfile, docker-compose hay phụ thuộc Redis/PostgreSQL.
 
-### 2. Backend coding rules
-- Async everywhere (SQLAlchemy async, asyncpg)
-- 3-layer: Router → Service → Model
-- Type hints + docstrings bắt buộc
-- Bleach sanitize user input
-- Không hardcode secrets
-- Logging thay vì print()
+### 2. Backend Coding Rules
+- Async everywhere (`aiosqlite`, `async with AsyncSessionLocal()`).
+- Kiến trúc 3 tầng: `routers/` → `services/` → `models/`.
+- Type hints và docstrings bắt buộc.
+- Dùng `bleach` sanitize text user input.
+- Dùng `logging` thay cho `print()`.
 
-### 3. Frontend coding rules
-- TypeScript strict
-- Functional components + custom hooks
-- CSS variables cho design tokens (KHÔNG inline)
-- Game-style UI: dark bg, neon green, pixel font, glow effects
-- Loading + Error + Empty states cho mọi data component
-- Responsive: mobile → tablet → desktop
+### 3. Frontend (Reflex) Coding Rules
+- 100% code Python cho trang và components.
+- Quản lý state thông qua các class kế thừa `rx.State`.
+- CSS tokens định nghĩa bằng CSS Variables trong `index.css`.
+- Đảm bảo dark theme retro game đồng nhất, có âm thanh/hiệu ứng micro-animation.
 
-### 4. Thứ tự ưu tiên khi code 1 feature
-```
-Backend:  Model → Schema → Service → Router → Tests
-Frontend: Types → API Service → Hook → Component → Page → CSS
-```
-
-### 5. Testing
-- Backend: pytest + pytest-asyncio
-- Frontend: Kiểm tra build thành công, no console errors
-- Manual: Test qua Swagger UI + Browser
-
-### 6. Git workflow
-- Branch: `feature/task-XX-ten-task`
-- Commit: `feat(scope): description` (Conventional Commits)
+---
 
 ## Checklist hoàn thành dự án
 
-- [ ] Docker Compose (dev) chạy: `docker-compose up`
-- [ ] Health check: `GET /health` → 200
-- [ ] All 10 DB tables created via Alembic
-- [ ] Auth flow: register → login → refresh
-- [ ] User profile: view, edit, upload, avatar
-- [ ] Feed: CRUD + matching algorithm + pagination
-- [ ] Rooms: create, lobby, request/approve, categories
-- [ ] Video Call: LiveKit token, join call, controls
-- [ ] Rating: 1-5 stars, avg update, pending ratings
-- [ ] Friends: request/accept, list with online status
-- [ ] Chat: real-time WebSocket, typing, read receipts
-- [ ] Frontend: All pages, game-style UI, responsive
-- [ ] 15 chibi avatars generated
-- [ ] Production Docker build
-- [ ] README.md complete
+- [ ] Chạy trực tiếp cả Backend & Frontend bằng `.venv`, không cần Docker
+- [ ] Backend khởi động tại `http://localhost:8000/docs`, health check trả về 200
+- [ ] Database SQLite `forfriend.db` tự sinh với 10 bảng và dữ liệu mẫu categories
+- [ ] Đăng ký tài khoản thành công kèm chọn 1 trong 15 avatar chibi
+- [ ] Bảng tin feed hiển thị bài đăng sắp xếp theo thuật toán matching
+- [ ] Tạo phòng học và duyệt khách vào phòng hoạt động qua WebSocket in-memory
+- [ ] Video call LiveKit kết nối hiển thị video
+- [ ] Popup đánh giá 1-5 sao hiển thị sau khi rời phòng
+- [ ] Kết bạn và nhắn tin 1-1 hoạt động real-time
+- [ ] Giao diện Reflex phong cách web game retro sắc nét
+- [ ] Script `run_dev.bat` và `run_dev.sh` khởi động toàn bộ dự án chỉ với 1 click

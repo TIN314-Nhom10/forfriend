@@ -20,10 +20,10 @@ Xây dựng toàn bộ giao diện với phong cách **web game retro / pixel ar
 
 ### 11.1. Design System (CSS Variables + Theme)
 
-Tạo `studybuddy/styles/theme.py` — style dictionary dùng trong Reflex components:
+Tạo `forfriend/styles/theme.py` — style dictionary dùng trong Reflex components:
 
 ```python
-"""Game-style design system cho StudyBuddy."""
+"""Game-style design system cho forfriend."""
 
 # ===== COLOR PALETTE =====
 colors = {
@@ -109,7 +109,7 @@ game_input_style = {
 }
 ```
 
-Tạo `studybuddy/styles/global.css` (CSS thuần cho animations và keyframes):
+Tạo `forfriend/styles/global.css` (CSS thuần cho animations và keyframes):
 
 ```css
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap');
@@ -153,7 +153,7 @@ body {
 
 Trong Reflex, state management dùng Python class kế thừa `rx.State`.
 
-#### `studybuddy/state/auth_state.py`
+#### `forfriend/state/auth_state.py`
 
 ```python
 import reflex as rx
@@ -209,7 +209,7 @@ class AuthState(rx.State):
         return {"Authorization": f"Bearer {self.access_token}"}
 ```
 
-#### `studybuddy/state/feed_state.py`
+#### `forfriend/state/feed_state.py`
 
 ```python
 import reflex as rx
@@ -268,7 +268,7 @@ class FeedState(AuthState):
         await self.load_feed()
 ```
 
-#### `studybuddy/state/room_state.py`
+#### `forfriend/state/room_state.py`
 
 ```python
 import reflex as rx
@@ -317,7 +317,7 @@ class RoomState(AuthState):
         self.is_in_call = True
 ```
 
-#### `studybuddy/state/chat_state.py`
+#### `forfriend/state/chat_state.py`
 
 ```python
 import reflex as rx
@@ -368,7 +368,7 @@ class ChatState(AuthState):
 
 ### 11.3. Components (Python thuần)
 
-#### `studybuddy/components/common.py`
+#### `forfriend/components/common.py`
 
 ```python
 import reflex as rx
@@ -475,7 +475,7 @@ def notification_toast(message: str, toast_type: str = "success") -> rx.Componen
     )
 ```
 
-#### `studybuddy/components/feed/post_card.py`
+#### `forfriend/components/feed/post_card.py`
 
 ```python
 import reflex as rx
@@ -522,7 +522,7 @@ def post_card(post) -> rx.Component:
     )
 ```
 
-#### `studybuddy/components/room/room_card.py`
+#### `forfriend/components/room/room_card.py`
 
 ```python
 import reflex as rx
@@ -569,7 +569,7 @@ def room_card(room) -> rx.Component:
     )
 ```
 
-#### `studybuddy/components/chat/message_bubble.py`
+#### `forfriend/components/chat/message_bubble.py`
 
 ```python
 import reflex as rx
@@ -601,7 +601,7 @@ def message_bubble(message) -> rx.Component:
 
 ### 11.4. Pages (Python thuần)
 
-#### `studybuddy/pages/login.py`
+#### `forfriend/pages/login.py`
 
 ```python
 import reflex as rx
@@ -658,7 +658,7 @@ def login_page() -> rx.Component:
     )
 ```
 
-#### `studybuddy/pages/feed.py`
+#### `forfriend/pages/feed.py`
 
 ```python
 import reflex as rx
@@ -726,7 +726,7 @@ def feed_page() -> rx.Component:
     )
 ```
 
-#### `studybuddy/pages/video_call.py`
+#### `forfriend/pages/video_call.py`
 
 ```python
 import reflex as rx
@@ -793,7 +793,7 @@ def video_call_page() -> rx.Component:
 
 ### 11.5. Layout & Routing
 
-#### `studybuddy/components/layout/game_layout.py`
+#### `forfriend/components/layout/game_layout.py`
 
 ```python
 import reflex as rx
@@ -874,7 +874,7 @@ def game_layout(*page_content) -> rx.Component:
     )
 ```
 
-#### `studybuddy/studybuddy.py` — App entry + routes
+#### `forfriend/forfriend.py` — App entry + routes
 
 ```python
 import reflex as rx
@@ -912,7 +912,7 @@ app.add_page(video_call.video_call_page, route="/rooms/[room_id]/call")  # Fulls
 ### 11.6. Avatar Selector (Multi-step Register)
 
 ```python
-# studybuddy/components/user/avatar_selector.py
+# forfriend/components/user/avatar_selector.py
 import reflex as rx
 from ...state.register_state import RegisterState
 from ...styles.theme import colors
@@ -963,9 +963,9 @@ def avatar_selector() -> rx.Component:
 
 ```
 frontend/
-├── studybuddy/
+├── forfriend/
 │   ├── __init__.py
-│   ├── studybuddy.py               # App entry + routing
+│   ├── forfriend.py               # App entry + routing
 │   ├── pages/
 │   │   ├── __init__.py
 │   │   ├── login.py
@@ -1018,8 +1018,7 @@ frontend/
 │       ├── sounds/                  # join.mp3, leave.mp3...
 │       └── logo.png
 ├── rxconfig.py
-├── requirements.txt
-└── Dockerfile
+└── requirements.txt
 ```
 
 > **Quan trọng**: Dùng tool `generate_image` để tạo 15 avatar chibi theo phong cách pixel art / anime chibi. Mỗi avatar nên có personality riêng (khác tóc, màu, trang phục).

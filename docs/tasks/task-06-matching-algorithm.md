@@ -118,13 +118,54 @@ Modify `PostService.get_feed()`:
 - Score + sort ở application layer
 - Trả đúng `per_page` bài theo thứ tự score
 
-### 6.3. Caching (Redis)
+### 6.3. Caching (In-Memory Python với TTL)
 
-- Cache feed kết quả cho mỗi user, TTL = 5 phút
-- Cache key: `feed:{user_id}:{page}:{per_page}:{filters_hash}`
+Để không phụ thuộc vào server Redis bên ngoài, hệ thống sử dụng cache in-memory viết bằng Python thuần trong `backend/app/utils/memory_cache.py`:
+
+```python
+import time
+from typing import Any
+
+class InMemoryCache:
+    """Quản lý cache trong RAM sử dụng Python dictionary có cơ chế hết hạn (TTL)."""
+    
+    def __init__(self):
+        # Lưu trữ: { key: (expires_at, value) }
+        self._store: dict[str, tuple[float, Any]] = {}
+
+    def get(self, key: str) -> Any | None:
+        """Lấy giá trị từ cache, trả về None nếu không tồn tại hoặc đã hết hạn."""
+        if key not in self._store:
+            return None
+        expires_at, value = self._store[key]
+        if time.time() > expires_at:
+            del self._store[key]
+            return None
+        return value
+
+    def set(self, key: str, value: Any, ttl_seconds: int = 300) -> None:
+        """Lưu giá trị vào cache với TTL (mặc định 5 phút = 300s)."""
+        expires_at = time.time() + ttl_seconds
+        self._store[key] = (expires_at, value)
+
+    def delete(self, key: str) -> None:
+        """Xóa 1 key cụ thể."""
+        self._store.pop(key, None)
+
+    def invalidate_prefix(self, prefix: str) -> None:
+        """Xóa toàn bộ key bắt đầu bằng prefix (ví dụ khi có post mới)."""
+        keys_to_delete = [k for k in self._store.keys() if k.startswith(prefix)]
+        for k in keys_to_delete:
+            del self._store[k]
+
+feed_cache = InMemoryCache()
+```
+
+- Cache feed kết quả cho mỗi user, TTL = 5 phút (300 giây).
+- Cache key: `feed:{user_id}:{page}:{per_page}:{filters_hash}`.
 - Invalidate khi:
-  - User tạo post mới → invalidate feed của user cùng school/area
-  - User update profile (school, subjects thay đổi) → invalidate feed của user đó
+  - User tạo post mới → `feed_cache.invalidate_prefix("feed:")`
+  - User update profile (school, subjects thay đổi) → xóa cache tương ứng
 
 ### 6.4. Tích hợp vào Room Lobby
 
@@ -141,14 +182,14 @@ Modify `RoomService.get_rooms()`:
 - Test recency decay: bài cũ hơn → score thấp hơn
 - Test author rating ảnh hưởng score
 - Test ranking order đúng
-- Test cache hit/miss
+- Test in-memory cache hit/miss và kiểm tra TTL
 
 ## Tiêu chí hoàn thành
 
 - [ ] MatchingService tính score đúng theo công thức
 - [ ] Feed API trả posts sắp xếp theo relevance_score
 - [ ] Room lobby sắp xếp theo relevance_score  
-- [ ] Redis cache hoạt động (TTL 5 phút)
-- [ ] Cache invalidation khi có post mới
+- [ ] In-Memory cache hoạt động ổn định (TTL 5 phút, 0% Redis)
+- [ ] Invalidate cache tự động khi có bài đăng mới
 - [ ] `relevance_score` field có trong response
 - [ ] Tests pass cho tất cả test cases

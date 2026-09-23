@@ -1,8 +1,8 @@
-# StudyBuddy — Tổng Quan Dự Án
+# forfriend — Tổng Quan Dự Án
 
 ## 1. Tầm nhìn (Vision)
 
-**StudyBuddy** là nền tảng web giúp sinh viên tìm bạn học cùng — cả online (video call) lẫn offline (đi học nhóm). Giao diện mang phong cách **game retro / pixel art** với avatar chibi, tạo cảm giác thú vị và khác biệt so với các ứng dụng học tập truyền thống.
+**forfriend** là nền tảng web giúp sinh viên tìm bạn học cùng — cả online (video call) lẫn offline (đi học nhóm). Giao diện mang phong cách **game retro / pixel art** với avatar chibi, tạo cảm giác thú vị và khác biệt so với các ứng dụng học tập truyền thống.
 
 ---
 
@@ -21,37 +21,40 @@
 
 ---
 
-## 3. Tech Stack
+## 3. Tech Stack (100% Pure Python Stack)
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    FRONTEND                         │
-│  Reflex (Python → React)  ← Python-first!           │
-│  CSS: Vanilla CSS (Game-style design system)        │
-│  Font: "Press Start 2P" (Google Fonts)              │
+│  Reflex (Python → React compile) ← Python-first!   │
+│  CSS: Vanilla CSS (Game-style design system tokens) │
+│  Font: "Press Start 2P" (Google Fonts) + "Inter"    │
 │  Icons: Pixel-art custom SVG                        │
-│  Video Call: LiveKit JS (wrap qua Reflex Custom     │
-│              Component — ngoại lệ duy nhất ~5% JS)  │
+│  Video Call: LiveKit React SDK (wrap qua Reflex     │
+│              Custom Component — ngoại lệ duy nhất)  │
 │  Real-time: Reflex State + native WebSocket         │
 └──────────────────────┬──────────────────────────────┘
-                       │ REST API + WebSocket
+                       │ REST API + WebSocket (/api/v1/)
 ┌──────────────────────▼──────────────────────────────┐
 │                    BACKEND                          │
 │  Python 3.11+ / FastAPI                             │
-│  ORM: SQLAlchemy 2.0 (async)                        │
-│  Auth: JWT (python-jose) + bcrypt                   │
+│  ORM: SQLAlchemy 2.0 (async mode với aiosqlite)     │
+│  Auth: JWT (python-jose) + bcrypt (passlib)         │
 │  Validation: Pydantic v2                            │
-│  WebSocket: FastAPI native                          │
-│  Task Queue: Celery + Redis (optional, cho email)   │
+│  Real-time Hub: FastAPI native WebSocket +         │
+│                 In-Memory ConnectionManager         │
+│  Matching Engine: Thuật toán tính độ phù hợp        │
 └──────────────────────┬──────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────┐
-│                 INFRASTRUCTURE                      │
-│  Database: PostgreSQL 15                            │
-│  Cache / Pub-Sub: Redis 7                           │
-│  Video SFU: LiveKit Cloud (Free tier)               │
-│  File Storage: Local disk (dev) / S3 (prod)         │
-│  Containerization: Docker + docker-compose          │
+│             DATA & IN-MEMORY LAYER                  │
+│  Database: SQLite 3 (file `forfriend.db` qua        │
+│            aiosqlite async driver)                  │
+│  Cache & Pub-Sub: In-Memory Python RAM              │
+│                   (Memory dict có TTL + Queue)      │
+│  Video SFU: LiveKit Cloud (Free tier WebRTC)        │
+│  File Storage: Local disk (thư mục `./uploads`)     │
+│  Môi trường: Python virtualenv (.venv) — 0% Docker │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -88,33 +91,33 @@ side-python-prj/
 │   ├── app/
 │   │   ├── main.py
 │   │   ├── config.py
-│   │   ├── database.py
-│   │   ├── models/                # SQLAlchemy models
+│   │   ├── database.py            # SQLite async engine (sqlite+aiosqlite:///./forfriend.db)
+│   │   ├── init_db.py             # Script tự động tạo bảng & seed categories
+│   │   ├── models/                # SQLAlchemy models (10 tables)
 │   │   ├── schemas/               # Pydantic schemas
 │   │   ├── routers/               # API route handlers
 │   │   ├── services/              # Business logic
-│   │   ├── utils/                 # Helpers (auth, matching...)
-│   │   └── websockets/            # WebSocket handlers
-│   ├── alembic/                   # DB migrations
+│   │   ├── utils/                 # Helpers (auth, matching, in-memory cache...)
+│   │   └── websockets/            # In-Memory ConnectionManager & WS handlers
 │   ├── tests/
-│   ├── requirements.txt
-│   └── Dockerfile
+│   ├── requirements.txt           # fastapi, uvicorn, sqlalchemy, aiosqlite...
+│   └── forfriend.db               # File database SQLite (tự sinh khi khởi động)
 │
-├── frontend/                      # Reflex app (Python-first)
-│   ├── studybuddy/                # Reflex app package
-│   │   ├── studybuddy.py          # App entry point
+├── frontend/                      # Reflex app (Python-first UI)
+│   ├── forfriend/                 # Reflex app package
+│   │   ├── forfriend.py           # App entry point & routes
 │   │   ├── pages/                 # Python pages
 │   │   ├── components/            # Python components
+│   │   │   └── livekit_component.py # Wrap WebRTC LiveKit
 │   │   ├── state/                 # Reflex State classes
-│   │   ├── styles/                # CSS variables + game design
-│   │   └── assets/                # Avatars, pixel art, sounds
+│   │   ├── styles/                # CSS variables + game design tokens
+│   │   └── assets/                # 15 chibi avatars, pixel art icons, sounds
 │   ├── rxconfig.py                # Reflex config
-│   ├── requirements.txt           # Python deps (không có package.json)
-│   └── Dockerfile
+│   └── requirements.txt           # reflex, httpx...
 │
-├── docker-compose.yml
+├── run_dev.bat                    # Script chạy nhanh cả 2 server trên Windows
+├── run_dev.sh                     # Script chạy nhanh cả 2 server trên Linux/macOS
 ├── .env.example
-├── req.txt                        # Yêu cầu gốc
 └── README.md
 ```
 

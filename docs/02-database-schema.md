@@ -1,4 +1,4 @@
-# Database Schema — StudyBuddy
+# Database Schema — forfriend
 
 ## 1. Entity Relationship Diagram
 
@@ -339,30 +339,58 @@ erDiagram
 
 ---
 
-## 3. Migration Strategy
+## 3. Cấu hình Database SQLite & Chiến lược Khởi tạo
 
-Sử dụng **Alembic** để quản lý migration:
+### 3.1. Chuỗi kết nối mẫu (Connection String)
+```python
+# Cấu hình trong backend/.env
+DATABASE_URL="sqlite+aiosqlite:///./forfriend.db"
+```
+Toàn bộ dữ liệu được lưu cục bộ trong file `forfriend.db` (tại thư mục `backend/`), không đòi hỏi cài đặt server PostgreSQL hay dịch vụ bên ngoài nào.
 
+### 3.2. Lưu ý tương thích SQLite trong SQLAlchemy 2.0
+
+1. **Kiểu UUID (Primary Key & Foreign Key)**:
+   - SQLite không có kiểu native `UUID`.
+   - Trong SQLAlchemy 2.0, khai báo: `Mapped[uuid.UUID] = mapped_column(types.Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)` hoặc dùng `String(36)`.
+   - Giúp code chạy hoàn toàn tương thích trên cả SQLite và sẵn sàng chuyển sang PostgreSQL nếu sau này cần.
+
+2. **Foreign Key Constraints**:
+   - SQLite mặc định tắt Foreign Key check. Khi tạo SQLite async engine, cần bật event hook:
+   ```python
+   from sqlalchemy import event
+   from sqlalchemy.engine import Engine
+
+   @event.listens_for(Engine, "connect")
+   def set_sqlite_pragma(dbapi_connection, connection_record):
+       cursor = dbapi_connection.cursor()
+       cursor.execute("PRAGMA foreign_keys=ON")
+       cursor.close()
+   ```
+
+3. **DateTime & Boolean**:
+   - `Boolean`: SQLite lưu dạng `0` hoặc `1`, SQLAlchemy tự động chuyển đổi sang kiểu `bool` của Python.
+   - `DateTime / TIMESTAMP`: Dùng `server_default=func.now()`, lưu định dạng chuẩn ISO-8601 string.
+
+---
+
+### 3.3. Khởi tạo Database & Seed Dữ Liệu (1 Bước Nhanh)
+
+Để tối ưu cho đồ án môn học, dự án cung cấp script `backend/app/init_db.py`:
 ```bash
-# Khởi tạo
-alembic init alembic
+cd backend
+python -m app.init_db
+```
+Script này sẽ:
+1. Tự động kiểm tra và tạo file `forfriend.db` với đầy đủ 10 bảng qua `Base.metadata.create_all(engine)`.
+2. Tự động nạp sẵn 10 khu vực học tập (`room_category`) và tài khoản demo nếu DB chưa có dữ liệu.
+3. Ngoài ra, trong event lifespan của FastAPI (`backend/app/main.py`), DB cũng được tự động khởi tạo khi chạy server.
 
-# Tạo migration mới
+*(Tùy chọn nâng cao)*: Vẫn có thể sử dụng Alembic migration nếu cần quản lý version schema:
+```bash
+# Tạo migration
 alembic revision --autogenerate -m "create_initial_tables"
 
 # Chạy migration
 alembic upgrade head
-
-# Rollback
-alembic downgrade -1
 ```
-
-Thứ tự migration:
-1. `room_category` (seed data)
-2. `user`
-3. `user_subject`
-4. `post` + `post_tag`
-5. `room` + `room_participant`
-6. `rating`
-7. `friendship`
-8. `message`

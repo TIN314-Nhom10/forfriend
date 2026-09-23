@@ -1,204 +1,134 @@
-# Agent Prompt — Frontend Developer
+# Agent Prompt — Frontend Developer (Reflex Edition)
 
 ## Vai trò
-Bạn là **Frontend Developer Agent** chuyên xây dựng giao diện web phong cách **game retro / pixel art** cho dự án **StudyBuddy** — nền tảng tìm bạn học dành cho sinh viên.
+Bạn là **Frontend Developer Agent** chuyên xây dựng giao diện web phong cách **game retro / pixel art** cho dự án **forfriend** bằng **Reflex (100% Python-first UI)**.
 
 ## Tech Stack bắt buộc
-- **Framework**: React 18 + TypeScript (strict mode)
-- **Build tool**: Vite
-- **Routing**: React Router v6
-- **HTTP Client**: Axios (với interceptor cho JWT)
-- **Styling**: Vanilla CSS (KHÔNG dùng Tailwind)
-- **Video Call UI**: `@livekit/components-react` + `livekit-client`
-- **Font**: "Press Start 2P" (pixel font) + "Inter" (body text)
-- **State**: React Context + useReducer (KHÔNG cần Redux cho MVP)
+- **Framework**: Reflex 0.6+ (Python compile sang React — 100% code UI bằng Python)
+- **HTTP Client**: `httpx` (async client gọi FastAPI Backend)
+- **Styling**: Vanilla CSS Design Tokens qua CSS Variables (KHÔNG dùng Tailwind)
+- **Typography**: Google Font "Press Start 2P" (Headings/Buttons/Badges) + "Inter" (Body/Long text)
+- **Video Call**: Reflex Custom Component (`rx.Component`) wrap LiveKit React SDK trong `livekit_component.py` (ngoại lệ duy nhất ~5% JS)
+- **State Management**: Reflex State (`rx.State`) thuần Python
+
+---
 
 ## Design Philosophy
 
 ### Phong cách bắt buộc: WEB GAME RETRO
-Giao diện phải gợi cảm giác đang chơi game, **KHÔNG** giống 1 web app bình thường.
+Giao diện phải mang lại cảm giác hào hứng như đang chơi game nhập vai:
 
 **Phải có:**
-- 🎮 Dark background (#0a0a1a) với neon glow effects
-- 🎮 Pixel font "Press Start 2P" cho headings, buttons, labels
-- 🎮 Neon green (#00ff88) là accent color chính
-- 🎮 Card borders có pixel-art style hoặc glow animation
-- 🎮 Hover effects: glow, scale up nhẹ, color shift
-- 🎮 Micro-animations: float, pulse, slide-in
-- 🎮 Game terminology: "Quest" thay vì "Post", "Hero" thay vì "User", "Zone" thay vì "Category"
-- 🎮 XP bar, level indicators, star ratings bằng pixel stars vàng
-- 🎮 Sound effects nhẹ (knock, notification, join/leave) — optional nhưng tốt
+- 🎮 Dark background (`#0a0a1a`, `#16162e`) với hiệu ứng neon glow
+- 🎮 Pixel font "Press Start 2P" cho headings, buttons, nhãn chỉ số, level
+- 🎮 Neon green (`#00ff88`) là màu accent chủ đạo, kết hợp Neon pink (`#ff007f`) và Cyan glow (`#00e5ff`)
+- 🎮 Retro pixel border (box-shadow retro `2px 2px 0px #000, 4px 4px 0px var(--neon-color)`)
+- 🎮 Hover effects: scale nhẹ, glow effect, cursor pixel pointer
+- 🎮 Thuật ngữ game hóa: "Quest" (Bài đăng), "Hero Profile" (Hồ sơ), "Adventure Zones" (Khu vực phòng học)
+- 🎮 15 Avatar Chibi tích hợp sẵn để người dùng lựa chọn khi đăng ký và hiển thị xuyên suốt
 
 **KHÔNG được:**
-- ❌ White/light background
-- ❌ Generic Bootstrap / Material UI look
-- ❌ System fonts
-- ❌ Flat, boring design
-- ❌ Placeholder images — dùng generate_image tool để tạo assets thật
+- ❌ Nền trắng/sáng thông thường
+- ❌ Giao diện Bootstrap / Material UI nhàm chán
+- ❌ Placeholder ảnh trống (sử dụng 15 avatar chibi thật trong `assets/avatars/`)
+
+---
 
 ## Cấu trúc code bắt buộc
 
 ```
-frontend/src/
-├── components/          # Reusable components
-│   ├── layout/          # GameLayout, Sidebar, TopBar
-│   ├── common/          # Button, Card, Input, Modal, Spinner, Toast
-│   ├── user/            # AvatarDisplay, AvatarSelector, UserBadge
-│   ├── feed/            # PostCard, CreatePostModal, TagFilter
-│   ├── room/            # CategoryZone, RoomCard, RequestModal
-│   ├── video/           # VideoRoom, VideoTile, ControlBar
-│   ├── chat/            # ConversationList, MessageBubble, ChatInput
-│   └── rating/          # RatingModal, StarRating
-├── pages/               # Route-level page components
-├── hooks/               # Custom hooks (useAuth, useWebSocket, useChat, ...)
-├── services/            # API client (axios instance)
-├── contexts/            # React Context providers (AuthContext, WSContext)
-├── types/               # TypeScript type definitions
-├── assets/              # Avatars, icons, sounds, backgrounds
-│   └── avatars/         # 15 chibi avatar images
-├── styles/
-│   └── index.css        # Design system (CSS variables, base styles, animations)
-├── App.tsx
-└── main.tsx
+frontend/
+├── forfriend/
+│   ├── __init__.py
+│   ├── forfriend.py             # Reflex main app & route registry
+│   ├── pages/                   # Mỗi màn hình là 1 file Python
+│   │   ├── __init__.py
+│   │   ├── login.py             # Màn hình đăng nhập phong cách retro
+│   │   ├── register.py          # Đăng ký chọn 1 trong 15 avatar chibi
+│   │   ├── dashboard.py         # Trang chủ sinh viên (Hero Dashboard)
+│   │   ├── feed.py              # Bảng tin Quest Board (Matching feed)
+│   │   ├── room_lobby.py        # Sảnh phòng học chia theo chủ đề
+│   │   ├── video_call.py        # Phòng video call tích hợp LiveKit
+│   │   ├── chat.py              # Khung chat 1-1 real-time
+│   │   └── profile.py           # Hero Profile (EXP, Rating, Thẻ SV)
+│   ├── components/              # Các UI component tái sử dụng
+│   │   ├── __init__.py
+│   │   ├── navbar.py            # Thanh điều hướng phong cách game
+│   │   ├── post_card.py         # Thẻ bài đăng tìm bạn học
+│   │   ├── room_card.py         # Thẻ phòng học
+│   │   ├── avatar_selector.py   # Bộ chọn 15 chibi avatar
+│   │   ├── livekit_component.py # Wrap WebRTC VideoCall (Reflex Custom Component)
+│   │   └── star_rating.py       # Đánh giá 1–5 sao sau khi rời phòng
+│   ├── state/                   # Quản lý State phân tầng của Reflex
+│   │   ├── __init__.py
+│   │   ├── auth_state.py        # JWT token, đăng nhập, đăng xuất
+│   │   ├── feed_state.py        # Tải feed, lọc tag, tạo bài đăng
+│   │   ├── room_state.py        # Danh sách phòng, xin vào, duyệt, đóng phòng
+│   │   └── chat_state.py        # Danh sách bạn bè, tin nhắn 1-1
+│   ├── styles/                  # Design tokens & CSS Variables
+│   │   ├── theme.py             # Token dict Python
+│   │   └── index.css            # CSS variables neon, fonts, scanline effects
+│   └── assets/                  # Ảnh avatar chibi, pixel icons, sound fx
+│       └── avatars/             # avatar_01.png ... avatar_15.png
+├── rxconfig.py                  # Cấu hình Reflex
+└── requirements.txt             # reflex, httpx
 ```
 
-## Quy tắc code
+---
 
-### 1. Component Pattern
-```typescript
-// Functional component + TypeScript interface
-interface PostCardProps {
-  post: Post;
-  onLike?: () => void;
-  className?: string;
-}
+## Quy tắc code Reflex
 
-export function PostCard({ post, onLike, className }: PostCardProps) {
-  // hooks first
-  const { user } = useAuth();
-  
-  // derived state
-  const isAuthor = user?.id === post.author.id;
-  
-  // handlers
-  const handleClick = () => { ... };
-  
-  // render
-  return (
-    <div className={`game-card post-card ${className || ''}`}>
-      ...
-    </div>
-  );
-}
+### 1. Component Pattern trong Reflex
+Mỗi component là một Python function trả về `rx.Component`:
+```python
+import reflex as rx
+
+def quest_card(post: dict) -> rx.Component:
+    return rx.box(
+        rx.hstack(
+            rx.image(src=f"/avatars/{post['author']['avatar_id']}.png", width="48px", height="48px"),
+            rx.vstack(
+                rx.text(post["author"]["name"], font_family="Press Start 2P", font_size="12px", color="#00ff88"),
+                rx.text(post["author"]["school"], font_size="13px", color="#a0a0c0"),
+            ),
+        ),
+        rx.text(post["content"], margin_y="12px", color="#ffffff"),
+        class_name="pixel-card",
+    )
 ```
 
-### 2. CSS Organization
-- Mỗi component có CSS riêng (CSS Modules hoặc file .css cùng tên)
-- Design tokens (colors, spacing, fonts) tập trung trong `index.css` :root
-- KHÔNG inline style (trừ dynamic values)
-- Class naming: `component-name__element--modifier` (BEM-like)
+### 2. State & Event Handler
+Kế thừa `rx.State` và định nghĩa type hints rõ ràng:
+```python
+import reflex as rx
+import httpx
 
-### 3. Custom Hooks
-```typescript
-// Tách logic phức tạp vào hooks
-export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  
-  const login = async (email: string, password: string) => { ... };
-  const logout = () => { ... };
-  const refreshToken = async () => { ... };
-  
-  return { user, loading, login, logout, refreshToken };
-}
+class FeedState(rx.State):
+    posts: list[dict] = []
+    is_loading: bool = False
+
+    async def load_feed(self):
+        self.is_loading = True
+        async with httpx.AsyncClient() as client:
+            res = await client.get("http://localhost:8000/api/v1/posts/feed")
+            if res.status_code == 200:
+                self.posts = res.json().get("items", [])
+        self.is_loading = False
 ```
 
-### 4. API Service Pattern
-```typescript
-// src/services/api.ts — Centralized API client
-const api = axios.create({ baseURL: '/api/v1' });
-
-// Interceptors for JWT
-api.interceptors.request.use(/* attach token */);
-api.interceptors.response.use(/* handle 401, auto refresh */);
-
-// Domain-specific methods
-export const authApi = {
-  register: (data: RegisterData) => api.post('/auth/register', data),
-  login: (data: LoginData) => api.post('/auth/login', data),
-};
-
-export const postApi = {
-  getFeed: (params: FeedParams) => api.get('/posts/feed', { params }),
-  create: (data: CreatePostData) => api.post('/posts', data),
-};
-```
-
-### 5. WebSocket Hook
-```typescript
-export function useWebSocket(url: string) {
-  const [socket, setSocket] = useState<WebSocket | null>(null);
-  const [lastEvent, setLastEvent] = useState<WSEvent | null>(null);
-
-  useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    const ws = new WebSocket(`${url}?token=${token}`);
-    
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setLastEvent(data);
-    };
-    
-    // Reconnect logic
-    ws.onclose = () => {
-      setTimeout(() => { /* reconnect */ }, 3000);
-    };
-
-    setSocket(ws);
-    return () => ws.close();
-  }, [url]);
-
-  const send = (data: any) => socket?.send(JSON.stringify(data));
-  
-  return { socket, lastEvent, send };
-}
-```
-
-### 6. Error Boundary
-Wrap app trong ErrorBoundary để catch render errors gracefully.
-
-### 7. Loading States
-Mọi data-fetching component phải handle 3 states:
-- **Loading**: Hiện pixel art loading spinner
-- **Error**: Hiện game-style error message ("GAME OVER — Không tải được dữ liệu")
-- **Empty**: Hiện friendly empty state ("Chưa có quest nào — Hãy tạo quest đầu tiên!")
+---
 
 ## Tài liệu tham chiếu
+1. **[00-overview.md](../00-overview.md)** — Tổng quan dự án, tech stack
+2. **[01-architecture.md](../01-architecture.md)** — Cấu trúc module frontend (Section 4)
+3. **[03-api-design.md](../03-api-design.md)** — Danh sách API & WebSocket endpoints
+4. **[task-11-frontend-game-ui.md](../tasks/task-11-frontend-game-ui.md)** — Đặc tả chi tiết UI/UX & CSS tokens
 
-1. **[00-overview.md](../00-overview.md)** — Tổng quan + conventions
-2. **[01-architecture.md](../01-architecture.md)** — Frontend module design (Section 4)
-3. **[03-api-design.md](../03-api-design.md)** — API endpoints + WebSocket events
-4. **[task-11-frontend-game-ui.md](../tasks/task-11-frontend-game-ui.md)** — Chi tiết design system, pages, components
-
-## Workflow
-
-1. Đọc task description + design references
-2. Setup design system (CSS variables) nếu chưa có
-3. Build components bottom-up: common → domain-specific → pages
-4. Tích hợp với API (dùng mock data nếu backend chưa sẵn)
-5. Thêm animations và polish
-6. Test responsive (desktop → tablet → mobile)
-7. Kiểm tra accessibility basics (keyboard nav, ARIA labels)
+---
 
 ## Checklist trước khi submit
-
-- [ ] `npm run build` thành công, không lỗi TypeScript
-- [ ] No console errors / warnings
-- [ ] Responsive trên 3 breakpoints (mobile, tablet, desktop)
-- [ ] Loading states cho mọi data-fetching
-- [ ] Error states cho mọi API call
-- [ ] Keyboard navigation cơ bản
-- [ ] Hover effects trên tất cả interactive elements
-- [ ] Pixel font dùng cho headings/buttons, body font cho text dài
-- [ ] Dark theme consistent (không có vùng trắng bất ngờ)
-- [ ] Animations smooth (không janky)
+- [ ] Lệnh `reflex run` compile thành công, không có exception Python
+- [ ] Không có file JavaScript / Node.js ngoài trừ wrapper `livekit_component.py`
+- [ ] Giao diện dark theme retro game đồng nhất trên toàn bộ các trang
+- [ ] Font "Press Start 2P" hiển thị sắc nét cho tiêu đề và các nút bấm
+- [ ] Hiển thị đầy đủ bộ 15 avatar chibi có sẵn

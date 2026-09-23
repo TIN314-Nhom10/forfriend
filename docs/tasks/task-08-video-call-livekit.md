@@ -138,7 +138,7 @@ Cài JS SDK (Reflex tự quản lý nếu dùng `_build_hooks`):
 npm install @livekit/components-react livekit-client
 ```
 
-Tạo `studybuddy/components/livekit_component.py`:
+Tạo `forfriend/components/livekit_component.py`:
 ```python
 import reflex as rx
 from reflex.components.component import NoSSRComponent
@@ -182,7 +182,7 @@ class RoomAudioRenderer(NoSSRComponent):
 
 Cấu trúc component video:
 ```
-studybuddy/components/video/
+forfriend/components/video/
 ├── livekit_component.py   # Custom Component bridge Python→JS
 ├── control_bar.py         # Nút mic/cam/leave (Python thuần)
 ├── participant_list.py    # Sidebar danh sách (Python thuần)
