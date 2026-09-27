@@ -1,9 +1,29 @@
 import os
+import socket
 import reflex as rx
 
-# LAN IP address of host machine (Wi-Fi: 192.168.1.5)
-# Set LAN_IP environment variable if running on a different network IP
-LAN_IP = os.getenv("LAN_IP", "192.168.1.122")
+
+def get_local_ip() -> str:
+    """Auto-detect the host machine's primary local IP address."""
+    env_ip = os.getenv("LAN_IP")
+    if env_ip:
+        return env_ip
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
+        # Connect to public DNS to determine active outbound interface IP
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        try:
+            return socket.gethostbyname(socket.gethostname())
+        except Exception:
+            return "127.0.0.1"
+
+
+LAN_IP = get_local_ip()
 API_URL = os.getenv("REFLEX_API_URL", f"http://{LAN_IP}:8001")
 
 config = rx.Config(

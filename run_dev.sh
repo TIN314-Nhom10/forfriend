@@ -32,10 +32,14 @@ FE_PID=$!
 
 trap "kill $BE_PID $FE_PID 2>/dev/null" EXIT
 
+LAN_IP=$(python get_lan_ip.py 2>/dev/null || echo "127.0.0.1")
+export LAN_IP
+
 echo ""
 echo "==================================================================="
 echo " Hệ thống ForFriend đã sẵn sàng:"
-echo "   - Trang chủ Web Game (Frontend):  http://localhost:3000"
+echo "   - Local Access (This PC):         http://localhost:3000"
+echo "   - LAN Access (Other Device):      http://${LAN_IP}:3000"
 echo "   - Tài liệu API tương tác (Swagger): http://localhost:8000/docs"
 echo "   - Database SQLite cục bộ:          backend/forfriend.db"
 echo "==================================================================="

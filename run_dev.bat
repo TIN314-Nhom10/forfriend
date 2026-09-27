@@ -18,6 +18,12 @@ if exist "%~dp0.venv\Scripts\python.exe" (
     echo [INFO] Using system python
 )
 
+REM Auto-detect local LAN IP of the host machine
+set "LAN_IP=127.0.0.1"
+for /f "usebackq tokens=*" %%a in (`"%PYTHON_EXE%" get_lan_ip.py`) do set "LAN_IP=%%a"
+if "%LAN_IP%"=="" set "LAN_IP=127.0.0.1"
+echo [INFO] Detected host LAN IP: %LAN_IP%
+
 REM Initialize SQLite database if not exists
 if not exist "%~dp0backend\forfriend.db" (
     echo [INFO] Initializing SQLite database and seeding categories...
@@ -42,7 +48,7 @@ echo.
 echo ===================================================================
 echo  ForFriend is running:
 echo    - Local Access (This PC):    http://localhost:3000
-echo    - LAN Access (Other Device): http://192.168.1.122:3000
+echo    - LAN Access (Other Device): http://%LAN_IP%:3000
 echo    - API Docs (Swagger):        http://localhost:8000/docs
 echo    - Health Check:              http://localhost:8000/health
 echo    - SQLite DB file:            backend\forfriend.db
