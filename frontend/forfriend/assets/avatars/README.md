@@ -1,0 +1,18 @@
+# 15 Chibi Hero Avatars (ForFriend)
+
+Thư mục lưu trữ 15 avatar chibi đại diện cho sinh viên khi đăng ký tài khoản (ID từ 1 đến 15):
+- avatar_1.png (Warrior / Chiến binh Tri thức)
+- avatar_2.png (Mage / Pháp sư Code)
+- avatar_3.png (Scholar / Học giả Sách)
+- avatar_4.png (Engineer / Kỹ sư Robot)
+- avatar_5.png (Artist / Họa sĩ Pixel)
+- avatar_6.png (Healer / Bác sĩ Tương lai)
+- avatar_7.png (Alchemist / Nhà Hóa học)
+- avatar_8.png (Strategist / Chiến lược gia Kinh tế)
+- avatar_9.png (Explorer / Nhà Thám hiểm Ngoại ngữ)
+- avatar_10.png (Judge / Thẩm phán Luật)
+- avatar_11.png (Architect / Kiến trúc sư)
+- avatar_12.png (Musician / Nhạc sĩ Giai điệu)
+- avatar_13.png (Astronomer / Nhà Thiên văn)
+- avatar_14.png (Ranger / Hướng đạo sinh)
+- avatar_15.png (Cyber Ninja / Hiệp sĩ An toàn thông tin)

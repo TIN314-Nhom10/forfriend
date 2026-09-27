@@ -216,3 +216,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ForFriend Project Specific
+forfriend.db
+*.db
+*.sqlite
+uploads/
+.web/
+frontend/.web/
+*.pdf
+report_assets/
+test*
