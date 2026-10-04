@@ -21,6 +21,7 @@ BACKEND_PID=$!
 # 3. Start Reflex State Engine (Backend-only) on internal port 8001
 echo "[3/3] Starting Reflex Backend on 127.0.0.1:8001..."
 cd /app/frontend
+export REFLEX_BACKEND_ONLY=1
 reflex run --env prod --backend-only --backend-port 8001 &
 REFLEX_PID=$!
 

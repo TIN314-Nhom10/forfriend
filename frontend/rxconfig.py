@@ -39,17 +39,23 @@ elif os.getenv("IN_DOCKER") or os.getenv("RENDER"):
 else:
     API_URL = f"http://{LAN_IP}:{BACKEND_PORT}"
 
-config = rx.Config(
-    app_name="forfriend",
-    backend_host="0.0.0.0",
-    backend_port=BACKEND_PORT,
-    frontend_port=FRONTEND_PORT,
-    api_url=API_URL,
-    cors_allowed_origins=["*"],
-    plugins=[
+config_kwargs = {
+    "app_name": "forfriend",
+    "backend_host": "0.0.0.0",
+    "backend_port": BACKEND_PORT,
+    "api_url": API_URL,
+    "cors_allowed_origins": ["*"],
+    "plugins": [
         rx.plugins.SitemapPlugin(trailing_slash="preserve"),
         rx.plugins.RadixThemesPlugin(),
     ],
-)
+}
+
+# Only include frontend_port if not in backend-only mode, because Reflex CLI errors
+# with 'Cannot specify --frontend-port when not running frontend' if present.
+if not os.getenv("REFLEX_BACKEND_ONLY"):
+    config_kwargs["frontend_port"] = int(os.getenv("FRONTEND_PORT", "3000"))
+
+config = rx.Config(**config_kwargs)
 
 
