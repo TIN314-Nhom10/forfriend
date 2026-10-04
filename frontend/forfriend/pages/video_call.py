@@ -85,6 +85,7 @@ def video_call_page() -> rx.Component:
                         connect=True,
                         audio=True,
                         video=True,
+                        data_lk_theme="default",
                     ),
                     rx.center(
                         rx.vstack(

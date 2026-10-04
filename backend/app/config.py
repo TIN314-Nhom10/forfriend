@@ -15,9 +15,9 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # LiveKit (Cloud Free Tier)
-    LIVEKIT_API_KEY: str = ""
-    LIVEKIT_API_SECRET: str = ""
-    LIVEKIT_URL: str = "wss://your-app.livekit.cloud"
+    LIVEKIT_API_KEY: str = "API6XXFcXFsPRR5"
+    LIVEKIT_API_SECRET: str = "FDN64XtB0ownYjOi6B99Ivt8ybC1rL5isrQoULz9rtK"
+    LIVEKIT_URL: str = "wss://forfriend-k8hok508.livekit.cloud"
 
     # Gemini AI OCR for Student ID Verification
     GEMINI_API_KEY: Optional[str] = None

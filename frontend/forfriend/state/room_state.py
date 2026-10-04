@@ -28,7 +28,7 @@ class RoomState(BaseState):
     current_room_host_id: str = ""
     is_host: bool = False
     livekit_token: str = ""
-    livekit_url: str = "wss://forfriend-demo.livekit.cloud"
+    livekit_url: str = "wss://forfriend-k8hok508.livekit.cloud"
     is_in_call: bool = False
 
     # Duyệt thành viên gõ cửa
@@ -218,7 +218,7 @@ class RoomState(BaseState):
                 data = resp.json()
                 self.current_room_id = str(room_id)
                 self.livekit_token = data.get("livekit_token") or data.get("token", "")
-                self.livekit_url = data.get("livekit_url") or data.get("url") or "wss://forfriend-demo.livekit.cloud"
+                self.livekit_url = data.get("livekit_url") or data.get("url") or "wss://forfriend-k8hok508.livekit.cloud"
                 self.is_host = bool(data.get("is_host", False))
                 self.is_in_call = True
             elif resp.status_code == 403:

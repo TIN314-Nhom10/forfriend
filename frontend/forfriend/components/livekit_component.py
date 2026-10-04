@@ -19,6 +19,7 @@ class LiveKitRoom(rx.Component):
     audio: rx.Var[bool] = True
     video: rx.Var[bool] = True
     screen: rx.Var[bool] = False
+    data_lk_theme: rx.Var[str] = "default"
 
 
 class VideoConference(rx.Component):
