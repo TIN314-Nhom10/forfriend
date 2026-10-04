@@ -26,7 +26,18 @@ def get_local_ip() -> str:
 LAN_IP = get_local_ip()
 FRONTEND_PORT = int(os.getenv("FRONTEND_PORT", "3000"))
 BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8001"))
-API_URL = os.getenv("REFLEX_API_URL") or f"http://{LAN_IP}:{BACKEND_PORT}"
+
+# If REFLEX_API_URL is explicitly set, use it.
+# Otherwise, in Docker / Render production, default to localhost so client-side browser
+# automatically connects to window.location.origin (HTTPS/WSS on the same domain)
+# via Reflex's built-in SAME_DOMAIN_HOSTNAMES logic.
+env_api_url = os.getenv("REFLEX_API_URL")
+if env_api_url:
+    API_URL = env_api_url
+elif os.getenv("IN_DOCKER") or os.getenv("RENDER"):
+    API_URL = f"http://localhost:{BACKEND_PORT}"
+else:
+    API_URL = f"http://{LAN_IP}:{BACKEND_PORT}"
 
 config = rx.Config(
     app_name="forfriend",

@@ -10,7 +10,8 @@ FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive \
     PORT=10000 \
-    REFLEX_API_URL="" \
+    IN_DOCKER=1 \
+    REFLEX_API_URL="http://localhost:8001" \
     BACKEND_URL="http://127.0.0.1:8000"
 
 # Install system dependencies, Nginx, gettext (for envsubst) and Node.js
