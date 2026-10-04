@@ -18,12 +18,11 @@ echo "[2/3] Starting FastAPI Backend on 127.0.0.1:8000..."
 uvicorn app.main:app --host 127.0.0.1 --port 8000 &
 BACKEND_PID=$!
 
-# 3. Start Reflex Frontend on internal port 3000
-echo "[3/3] Starting Reflex Frontend on 127.0.0.1:3000..."
+# 3. Start Reflex State Engine (Backend-only) on internal port 8001
+echo "[3/3] Starting Reflex Backend on 127.0.0.1:8001..."
 cd /app/frontend
-python patch_react_router.py || true
-reflex run --env prod --frontend-port 3000 &
-FRONTEND_PID=$!
+reflex run --env prod --backend-only --backend-port 8001 &
+REFLEX_PID=$!
 
 # 4. Generate Nginx configuration from template with dynamic $PORT
 echo "[4/4] Configuring Nginx reverse proxy on port $PORT..."
@@ -33,7 +32,7 @@ envsubst '${PORT}' < /app/nginx.conf.template > /tmp/nginx.conf
 cleanup() {
     echo "Stopping services..."
     nginx -s stop 2>/dev/null || true
-    kill -TERM "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
+    kill -TERM "$BACKEND_PID" "$REFLEX_PID" 2>/dev/null || true
     exit 0
 }
 trap cleanup SIGTERM SIGINT

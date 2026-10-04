@@ -43,10 +43,9 @@ COPY . /app
 # Ensure executable permissions on startup script
 RUN chmod +x /app/start.sh
 
-# Pre-initialize Reflex frontend
+# Pre-export Reflex frontend during build time
 WORKDIR /app/frontend
-RUN reflex init && \
-    python patch_react_router.py || true
+RUN reflex export --frontend-only --no-zip
 
 WORKDIR /app
 
