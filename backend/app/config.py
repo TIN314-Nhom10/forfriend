@@ -14,10 +14,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 ngày (10080 phút) để giữ session ổn định khi test
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
 
-    # LiveKit (Cloud Free Tier)
-    LIVEKIT_API_KEY: str = "API6XXFcXFsPRR5"
-    LIVEKIT_API_SECRET: str = "FDN64XtB0ownYjOi6B99Ivt8ybC1rL5isrQoULz9rtK"
-    LIVEKIT_URL: str = "wss://forfriend-k8hok508.livekit.cloud"
+    # LiveKit (Cloud Free Tier - nạp từ biến môi trường hoặc file .env)
+    LIVEKIT_API_KEY: str = ""
+    LIVEKIT_API_SECRET: str = ""
+    LIVEKIT_URL: str = ""
 
     # Gemini AI OCR for Student ID Verification
     GEMINI_API_KEY: Optional[str] = None

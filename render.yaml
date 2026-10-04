@@ -23,10 +23,10 @@ services:
       - key: CORS_ORIGINS
         value: '["*"]'
       - key: LIVEKIT_API_KEY
-        value: API6XXFcXFsPRR5
+        sync: false
       - key: LIVEKIT_API_SECRET
-        value: FDN64XtB0ownYjOi6B99Ivt8ybC1rL5isrQoULz9rtK
+        sync: false
       - key: LIVEKIT_URL
-        value: wss://forfriend-k8hok508.livekit.cloud
+        sync: false
       - key: GEMINI_MODEL
         value: gemini-2.5-flash

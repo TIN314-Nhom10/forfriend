@@ -42,9 +42,9 @@ class ParticipantResponse(BaseModel):
 
 class RoomCreate(BaseModel):
     """Payload tạo phòng học mới."""
-    name: Optional[str] = Field(None, min_length=2, max_length=100, description="Tên phòng học")
-    title: Optional[str] = Field(None, min_length=2, max_length=100, description="Alias cho Tên phòng học")
-    topic: str = Field(..., min_length=2, max_length=200, description="Chủ đề môn học")
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Tên phòng học")
+    title: Optional[str] = Field(None, min_length=1, max_length=100, description="Alias cho Tên phòng học")
+    topic: str = Field(..., min_length=1, max_length=200, description="Chủ đề môn học")
     category_id: uuid.UUID = Field(..., description="ID phân khu danh mục môn học")
     max_participants: int = Field(default=10, ge=2, le=20, description="Số lượng thành viên tối đa (2-20)")
 

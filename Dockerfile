@@ -12,10 +12,7 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=10000 \
     IN_DOCKER=1 \
     REFLEX_API_URL="http://localhost:8001" \
-    BACKEND_URL="http://127.0.0.1:8000" \
-    LIVEKIT_URL="wss://forfriend-k8hok508.livekit.cloud" \
-    LIVEKIT_API_KEY="API6XXFcXFsPRR5" \
-    LIVEKIT_API_SECRET="FDN64XtB0ownYjOi6B99Ivt8ybC1rL5isrQoULz9rtK"
+    BACKEND_URL="http://127.0.0.1:8000"
 
 # Install system dependencies, Nginx, gettext (for envsubst) and Node.js
 RUN apt-get update && apt-get install -y --no-install-recommends \

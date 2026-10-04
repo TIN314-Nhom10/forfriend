@@ -29,7 +29,7 @@ class RoomState(BaseState):
     current_room_host_id: str = ""
     is_host: bool = False
     livekit_token: str = ""
-    livekit_url: str = "wss://forfriend-k8hok508.livekit.cloud"
+    livekit_url: str = ""
     is_in_call: bool = False
 
     # Duyệt thành viên gõ cửa
@@ -181,6 +181,21 @@ class RoomState(BaseState):
             elif resp.status_code == 401:
                 self.is_auth_error = True
                 self.create_error = "⚠️ Phiên đăng nhập (JWT) đã hết hạn. Vui lòng bấm Demo Login hoặc Đăng nhập lại!"
+            elif resp.status_code == 422:
+                err = resp.json()
+                detail = err.get("detail")
+                if isinstance(detail, list) and len(detail) > 0:
+                    first_err = detail[0]
+                    loc = first_err.get("loc", [])
+                    field = loc[-1] if loc else "dữ liệu"
+                    field_name = "Tên phòng" if field in ["name", "title"] else ("Chủ đề" if field == "topic" else field)
+                    msg = first_err.get("msg", "")
+                    if "at least" in msg:
+                        self.create_error = f"⚠️ {field_name} quá ngắn! Vui lòng nhập ít nhất 1 ký tự."
+                    else:
+                        self.create_error = f"⚠️ Lỗi nhập {field_name}: {msg}"
+                else:
+                    self.create_error = "⚠️ Dữ liệu nhập phòng học chưa hợp lệ!"
             else:
                 err = resp.json()
                 self.create_error = str(err.get("detail", "Failed to create room!"))
@@ -227,7 +242,7 @@ class RoomState(BaseState):
                 data = resp.json()
                 self.current_room_id = str(room_id)
                 self.livekit_token = data.get("livekit_token") or data.get("token", "")
-                self.livekit_url = data.get("livekit_url") or data.get("url") or "wss://forfriend-k8hok508.livekit.cloud"
+                self.livekit_url = data.get("livekit_url") or data.get("url") or ""
                 self.is_host = bool(data.get("is_host", False))
                 self.is_in_call = True
             elif resp.status_code == 401:
