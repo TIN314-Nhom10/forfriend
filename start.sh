@@ -25,18 +25,24 @@ python patch_react_router.py || true
 reflex run --env prod --frontend-port 3000 &
 FRONTEND_PID=$!
 
+# 4. Generate Nginx configuration from template with dynamic $PORT
+echo "[4/4] Configuring Nginx reverse proxy on port $PORT..."
+envsubst '${PORT}' < /app/nginx.conf.template > /tmp/nginx.conf
+
 # Graceful termination handler
 cleanup() {
     echo "Stopping services..."
+    nginx -s stop 2>/dev/null || true
     kill -TERM "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
     exit 0
 }
 trap cleanup SIGTERM SIGINT
 
-# 4. Start Caddy Reverse Proxy on Render's assigned $PORT
 echo "=========================================================="
 echo " ForFriend is LIVE on Render port $PORT!"
 echo "   - Web App:      http://0.0.0.0:$PORT/"
 echo "   - Swagger Docs: http://0.0.0.0:$PORT/docs"
 echo "=========================================================="
-exec caddy run --config /app/Caddyfile --adapter caddyfile
+
+# Start Nginx in foreground
+exec nginx -c /tmp/nginx.conf -g "daemon off;"

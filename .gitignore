@@ -225,5 +225,10 @@ uploads/
 .web/
 frontend/.web/
 *.pdf
+*.docx
+*.pptx
+build_full_report_docx.py
+build_presentation.py
+generate_report_assets.py
 report_assets/
 test*

@@ -91,9 +91,10 @@ Hệ thống đã nạp sẵn các tài khoản sinh viên mẫu:
 
 ---
 
-## 5. Tài Liệu Báo Cáo & Thuyết Trình Đi Kèm
+## 5. Tài Liệu Thiết Kế Kỹ Thuật
 
-Trong mã nguồn dự án đã đính kèm đầy đủ tài liệu phục vụ nghiệm thu:
-- **Báo cáo đồ án Word (`.docx`)**: [`Bao_Cao_Du_An_ForFriend_Updated.docx`](./Bao_Cao_Du_An_ForFriend_Updated.docx)
-- **Slide thuyết trình PowerPoint (`.pptx`)**: [`ForFriend_Presentation.pptx`](./ForFriend_Presentation.pptx)
-- **Tài liệu kiến trúc & thiết kế API**: Thư mục [`docs/`](./docs/)
+Tài liệu kiến trúc chi tiết, sơ đồ cơ sở dữ liệu và đặc tả API được lưu trữ trong thư mục [`docs/`](./docs/):
+- [`00-overview.md`](./docs/00-overview.md): Tổng quan kiến trúc & Tech stack
+- [`01-architecture.md`](./docs/01-architecture.md): Sơ đồ luồng dữ liệu & sequence diagrams
+- [`02-database-schema.md`](./docs/02-database-schema.md): Thiết kế 10 bảng SQLite
+- [`03-api-design.md`](./docs/03-api-design.md): Đặc tả API REST & WebSockets
