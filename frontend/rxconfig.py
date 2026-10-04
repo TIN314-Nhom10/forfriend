@@ -24,13 +24,15 @@ def get_local_ip() -> str:
 
 
 LAN_IP = get_local_ip()
-API_URL = os.getenv("REFLEX_API_URL", f"http://{LAN_IP}:8001")
+FRONTEND_PORT = int(os.getenv("FRONTEND_PORT", "3000"))
+BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8001"))
+API_URL = os.getenv("REFLEX_API_URL") or f"http://{LAN_IP}:{BACKEND_PORT}"
 
 config = rx.Config(
     app_name="forfriend",
     backend_host="0.0.0.0",
-    backend_port=8001,
-    frontend_port=3000,
+    backend_port=BACKEND_PORT,
+    frontend_port=FRONTEND_PORT,
     api_url=API_URL,
     cors_allowed_origins=["*"],
     plugins=[

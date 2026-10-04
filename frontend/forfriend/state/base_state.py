@@ -1,10 +1,15 @@
-"""Base State cho toàn bộ Reflex app ForFriend với LocalStorage đồng bộ và hỗ trợ đa ngôn ngữ ENG/VIE."""
+import os
 from typing import Optional
 import httpx
 import reflex as rx
 
-API_BASE_URL = "http://localhost:8000/api/v1"
-WS_BASE_URL = "ws://localhost:8000"
+# Backend API Configuration: Localhost default, overrideable via environment variable
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
+API_BASE_URL = os.getenv("API_BASE_URL", f"{BACKEND_URL}/api/v1")
+WS_BASE_URL = os.getenv(
+    "WS_BASE_URL",
+    BACKEND_URL.replace("https://", "wss://").replace("http://", "ws://"),
+)
 
 
 class BaseState(rx.State):
