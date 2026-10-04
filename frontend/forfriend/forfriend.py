@@ -18,7 +18,7 @@ app = rx.App(
     style=GLOBAL_STYLES,
     stylesheets=[
         "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap",
-        "https://cdn.jsdelivr.net/npm/@livekit/components-styles/dist/index.css",
+        "/styles/livekit.css",
         "/styles/global.css",
     ],
 )
