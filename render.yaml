@@ -11,13 +11,13 @@ services:
       - key: DATABASE_URL
         value: sqlite+aiosqlite:///./forfriend.db
       - key: JWT_SECRET_KEY
-        generateValue: true
+        value: forfriend_course_project_jwt_secret_key_2026_super_secure
       - key: JWT_ALGORITHM
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
-        value: "60"
+        value: "10080"
       - key: REFRESH_TOKEN_EXPIRE_DAYS
-        value: "7"
+        value: "14"
       - key: UPLOAD_DIR
         value: ./uploads
       - key: CORS_ORIGINS

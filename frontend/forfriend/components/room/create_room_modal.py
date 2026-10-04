@@ -163,10 +163,30 @@ def create_room_modal() -> rx.Component:
                             spacing="3",
                             align="center",
                         ),
-                        # Error Message
+                        # Error Message & Quick Re-login
                         rx.cond(
                             RoomState.create_error != "",
-                            rx.text(RoomState.create_error, color=COLORS["danger"], font_family=FONTS["ui"], font_size="13px", font_weight="bold"),
+                            rx.vstack(
+                                rx.text(RoomState.create_error, color=COLORS["danger"], font_family=FONTS["ui"], font_size="13px", font_weight="bold"),
+                                rx.cond(
+                                    RoomState.is_auth_error,
+                                    rx.button(
+                                        "⚡ 1-Click Demo Login (Nguyen Van A - FTU)",
+                                        on_click=BaseState.login_as_demo,
+                                        size="2",
+                                        background=COLORS["neon_green"],
+                                        color="#04120a",
+                                        font_weight="700",
+                                        font_family=FONTS["ui"],
+                                        border_radius="8px",
+                                        cursor="pointer",
+                                        box_shadow=f"0 0 12px {COLORS['neon_green']}66",
+                                        _hover={"filter": "brightness(1.1)"},
+                                    ),
+                                ),
+                                spacing="2",
+                                width="100%",
+                            ),
                         ),
                         # Action Row
                         rx.hstack(

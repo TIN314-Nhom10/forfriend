@@ -21,6 +21,7 @@ class RoomState(BaseState):
     new_room_category_id: str = ""
     new_room_max: int = 6
     create_error: str = ""
+    is_auth_error: bool = False
 
     # Trong phòng & Call
     current_room_id: str = ""
@@ -142,15 +143,18 @@ class RoomState(BaseState):
 
     async def create_room(self):
         """Tạo phòng học ảo mới."""
+        self.create_error = ""
+        self.is_auth_error = False
         base_state = await self.get_state(BaseState)
         token = (base_state.token or self.token or "").strip()
 
         if not token:
-            self.create_error = "⚠️ Not authenticated! Please log in to create a study room."
+            self.is_auth_error = True
+            self.create_error = "⚠️ Bạn chưa đăng nhập. Vui lòng bấm Demo Login hoặc Đăng nhập để tạo phòng!"
             return
 
         if not self.new_room_title.strip():
-            self.create_error = "Please enter a study room title!"
+            self.create_error = "Vui lòng nhập tên phòng học!"
             return
 
         cat_id = self.new_room_category_id or (self.categories[0].id if self.categories else "")
@@ -174,6 +178,9 @@ class RoomState(BaseState):
                 self.show_create_modal = False
                 self.notify("Study room created! Entering zone...", "success")
                 return await self.enter_room(room_id)
+            elif resp.status_code == 401:
+                self.is_auth_error = True
+                self.create_error = "⚠️ Phiên đăng nhập (JWT) đã hết hạn. Vui lòng bấm Demo Login hoặc Đăng nhập lại!"
             else:
                 err = resp.json()
                 self.create_error = str(err.get("detail", "Failed to create room!"))
@@ -196,6 +203,8 @@ class RoomState(BaseState):
                 )
             if resp.status_code == 200:
                 self.notify("🚪 Knock sent! Please wait for Host approval...", "info")
+            elif resp.status_code == 401:
+                self.notify("⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!", "error")
             elif resp.status_code == 409:
                 return await self.enter_room(room_id)
             else:
@@ -221,6 +230,8 @@ class RoomState(BaseState):
                 self.livekit_url = data.get("livekit_url") or data.get("url") or "wss://forfriend-k8hok508.livekit.cloud"
                 self.is_host = bool(data.get("is_host", False))
                 self.is_in_call = True
+            elif resp.status_code == 401:
+                self.notify("⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!", "error")
             elif resp.status_code == 403:
                 self.notify("You haven't been approved by the Host yet. Waiting for approval...", "warning")
             else:
